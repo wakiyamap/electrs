@@ -7,7 +7,6 @@ use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use rayon::prelude::*;
 
-use hex;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;

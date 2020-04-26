@@ -5,9 +5,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use base64;
-use glob;
-use hex;
 use monacoin::hashes::hex::{FromHex, ToHex};
 use monacoin::{BlockHash, Txid};
 use serde_json::{from_str, from_value, Value};

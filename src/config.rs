@@ -5,7 +5,6 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use stderrlog;
 
 use crate::chain::Network;
 use crate::daemon::CookieGetter;

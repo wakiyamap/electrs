@@ -8,7 +8,6 @@ use std::thread;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use error_chain::ChainedError;
-use hex;
 use monacoin::hashes::hex::{FromHex, ToHex};
 use monacoin::hashes::sha256d::Hash as Sha256dHash;
 use monacoin::Txid;

@@ -1,4 +1,3 @@
-use bincode;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use itertools::Itertools;

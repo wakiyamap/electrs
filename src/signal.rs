@@ -1,5 +1,3 @@
-use chan;
-use chan_signal;
 use std::time::Duration;
 
 use crate::errors::*;

@@ -19,7 +19,6 @@ use monacoin::hashes::Error as HashError;
 use monacoin::{BlockHash, Script, Txid};
 
 use serde::Serialize;
-use serde_json;
 use std::collections::HashMap;
 use std::num::ParseIntError;
 use std::str::FromStr;

@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::iter::FromIterator;
 use std::slice;
-use time;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlockId {
