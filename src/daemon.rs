@@ -6,15 +6,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use base64;
-use bitcoin::hashes::hex::{FromHex, ToHex};
-use bitcoin::util::hash::BitcoinHash;
-use bitcoin::{BlockHash, Txid};
+use monacoin::hashes::hex::{FromHex, ToHex};
+use monacoin::{BlockHash, Txid};
 use glob;
 use hex;
 use serde_json::{from_str, from_value, Value};
 
 #[cfg(not(feature = "liquid"))]
-use bitcoin::consensus::encode::{deserialize, serialize};
+use monacoin::consensus::encode::{deserialize, serialize};
 #[cfg(feature = "liquid")]
 use elements::encode::{deserialize, serialize};
 
@@ -291,11 +290,11 @@ impl Daemon {
             message_id: Counter::new(),
             signal: signal.clone(),
             latency: metrics.histogram_vec(
-                HistogramOpts::new("daemon_rpc", "Bitcoind RPC latency (in seconds)"),
+                HistogramOpts::new("daemon_rpc", "Monacoind RPC latency (in seconds)"),
                 &["method"],
             ),
             size: metrics.histogram_vec(
-                HistogramOpts::new("daemon_bytes", "Bitcoind RPC size (in bytes)"),
+                HistogramOpts::new("daemon_bytes", "Monacoind RPC size (in bytes)"),
                 &["method", "dir"],
             ),
         };
@@ -303,14 +302,14 @@ impl Daemon {
         info!("{:?}", network_info);
         if network_info.version < 16_00_00 {
             bail!(
-                "{} is not supported - please use bitcoind 0.16+",
+                "{} is not supported - please use Monacoind 0.16+",
                 network_info.subversion,
             )
         }
         let blockchain_info = daemon.getblockchaininfo()?;
         info!("{:?}", blockchain_info);
         if blockchain_info.pruned {
-            bail!("pruned node is not supported (use '-prune=0' bitcoind flag)".to_owned())
+            bail!("pruned node is not supported (use '-prune=0' monacoind flag)".to_owned())
         }
         loop {
             let info = daemon.getblockchaininfo()?;
@@ -320,7 +319,7 @@ impl Daemon {
             }
 
             warn!(
-                "waiting for bitcoind sync to finish: {}/{} blocks, vertification progress: {:.3}%",
+                "waiting for monacoind sync to finish: {}/{} blocks, vertification progress: {:.3}%",
                 info.blocks,
                 info.headers,
                 info.verificationprogress * 100.0
@@ -397,7 +396,7 @@ impl Daemon {
         loop {
             match self.handle_request_batch(method, params_list) {
                 Err(Error(ErrorKind::Connection(msg), _)) => {
-                    warn!("reconnecting to bitcoind: {}", msg);
+                    warn!("reconnecting to monacoind: {}", msg);
                     self.signal.wait(Duration::from_secs(3))?;
                     let mut conn = self.conn.lock().unwrap();
                     *conn = conn.reconnect()?;
@@ -418,7 +417,7 @@ impl Daemon {
         self.retry_request_batch(method, params_list)
     }
 
-    // bitcoind JSONRPC API:
+    // monacoind JSONRPC API:
 
     pub fn getblockchaininfo(&self) -> Result<BlockchainInfo> {
         let info: Value = self.request("getblockchaininfo", json!([]))?;
@@ -459,7 +458,7 @@ impl Daemon {
         let block = block_from_value(
             self.request("getblock", json!([blockhash.to_hex(), /*verbose=*/ false]))?,
         )?;
-        assert_eq!(block.bitcoin_hash(), *blockhash);
+        assert_eq!(block.block_hash(), *blockhash);
         Ok(block)
     }
 
@@ -586,7 +585,7 @@ impl Daemon {
         let mut blockhash = BlockHash::default();
         for header in &result {
             assert_eq!(header.prev_blockhash, blockhash);
-            blockhash = header.bitcoin_hash();
+            blockhash = header.block_hash();
         }
         assert_eq!(blockhash, *tip);
         Ok(result)

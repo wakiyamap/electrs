@@ -1,4 +1,4 @@
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
+use monacoin::hashes::sha256d::Hash as Sha256dHash;
 use std::sync::{Arc, Mutex};
 
 use crate::{daemon, index, signal::Waiter, store};

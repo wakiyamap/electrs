@@ -106,7 +106,7 @@ impl Config {
             .arg(
                 Arg::with_name("daemon_rpc_addr")
                     .long("daemon-rpc-addr")
-                    .help("Bitcoin daemon JSONRPC 'addr:port' to connect (default: 127.0.0.1:8332 for mainnet, 127.0.0.1:18332 for testnet and 127.0.0.1:18443 for regtest)")
+                    .help("Bitcoin daemon JSONRPC 'addr:port' to connect (default: 127.0.0.1:9402 for mainnet, 127.0.0.1:19402 for testnet and 127.0.0.1:18443 for regtest)")
                     .takes_value(true),
             )
             .arg(
@@ -181,8 +181,8 @@ impl Config {
             .value_of("parent_network")
             .map(Network::from)
             .unwrap_or_else(|| match network_type {
-                Network::Liquid => Network::Bitcoin,
-                Network::LiquidRegtest => Network::Regtest,
+                Network::Liquid => Network::Monacoin,
+                Network::LiquidRegtest => Network::MonacoinRegtest,
                 _ => panic!("unknown liquid network, --parent-network is required"),
             });
 
@@ -190,9 +190,9 @@ impl Config {
         let asset_db_path = m.value_of("asset_db_path").map(PathBuf::from);
 
         let default_daemon_port = match network_type {
-            Network::Bitcoin => 8332,
-            Network::Testnet => 18332,
-            Network::Regtest => 18443,
+            Network::Monacoin => 9401,
+            Network::MonacoinTestnet => 19403,
+            Network::MonacoinRegtest => 18443,
 
             #[cfg(feature = "liquid")]
             Network::Liquid => 7041,
@@ -200,9 +200,9 @@ impl Config {
             Network::LiquidRegtest => 7041,
         };
         let default_electrum_port = match network_type {
-            Network::Bitcoin => 50001,
-            Network::Testnet => 60001,
-            Network::Regtest => 60401,
+            Network::Monacoin => 50001,
+            Network::MonacoinTestnet => 60001,
+            Network::MonacoinRegtest => 60401,
 
             #[cfg(feature = "liquid")]
             Network::Liquid => 51000,
@@ -210,9 +210,9 @@ impl Config {
             Network::LiquidRegtest => 51401,
         };
         let default_http_port = match network_type {
-            Network::Bitcoin => 3000,
-            Network::Testnet => 3001,
-            Network::Regtest => 3002,
+            Network::Monacoin => 3000,
+            Network::MonacoinTestnet => 3001,
+            Network::MonacoinRegtest => 3002,
 
             #[cfg(feature = "liquid")]
             Network::Liquid => 3000,
@@ -220,9 +220,9 @@ impl Config {
             Network::LiquidRegtest => 3002,
         };
         let default_monitoring_port = match network_type {
-            Network::Bitcoin => 4224,
-            Network::Testnet => 14224,
-            Network::Regtest => 24224,
+            Network::Monacoin => 4224,
+            Network::MonacoinTestnet => 14224,
+            Network::MonacoinRegtest => 24224,
 
             #[cfg(feature = "liquid")]
             Network::Liquid => 34224,
@@ -256,13 +256,13 @@ impl Config {
             .map(PathBuf::from)
             .unwrap_or_else(|| {
                 let mut default_dir = home_dir().expect("no homedir");
-                default_dir.push(".bitcoin");
+                default_dir.push(".monacoin");
                 default_dir
             });
         match network_type {
-            Network::Bitcoin => (),
-            Network::Testnet => daemon_dir.push("testnet3"),
-            Network::Regtest => daemon_dir.push("regtest"),
+            Network::Monacoin => (),
+            Network::MonacoinTestnet => daemon_dir.push("testnet4"),
+            Network::MonacoinRegtest => daemon_dir.push("regtest"),
 
             #[cfg(feature = "liquid")]
             Network::Liquid => daemon_dir.push("liquidv1"),

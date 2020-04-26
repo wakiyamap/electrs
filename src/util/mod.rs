@@ -17,7 +17,7 @@ use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
 use std::thread;
 
 use crate::chain::BlockHeader;
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
+use monacoin::hashes::sha256d::Hash as Sha256dHash;
 
 pub type Bytes = Vec<u8>;
 pub type HeaderMap = HashMap<Sha256dHash, BlockHeader>;

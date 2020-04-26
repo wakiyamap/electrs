@@ -51,9 +51,9 @@ def main():
     args = parser.parse_args()
 
     if args.testnet:
-        d = Daemon(port=18332, cookie_dir='~/.bitcoin/testnet3')
+        d = Daemon(port=19402, cookie_dir='~/.monacoin/testnet4')
     else:
-        d = Daemon(port=8332, cookie_dir='~/.bitcoin')
+        d = Daemon(port=9402, cookie_dir='~/.monacoin')
 
     txids, = d.request('getrawmempool', [[False]])
     txids = list(map(lambda a: [a], txids))

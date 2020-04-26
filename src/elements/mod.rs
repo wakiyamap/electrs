@@ -1,4 +1,4 @@
-use bitcoin::hashes::{hex::ToHex, Hash};
+use monacoin::hashes::{hex::ToHex, Hash};
 use elements::{confidential::Value, encode::serialize, issuance::ContractHash, AssetId, TxIn};
 
 pub mod asset;

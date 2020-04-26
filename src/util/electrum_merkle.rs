@@ -1,5 +1,5 @@
-use bitcoin::hashes::{sha256d::Hash as Sha256dHash, Hash};
-use bitcoin::{BlockHash, Txid};
+use monacoin::hashes::{sha256d::Hash as Sha256dHash, Hash};
+use monacoin::{BlockHash, Txid};
 
 use crate::errors::*;
 use crate::new_index::ChainQuery;

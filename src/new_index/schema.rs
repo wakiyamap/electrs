@@ -1,16 +1,16 @@
 use bincode;
-use bitcoin::blockdata::script::Script;
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
+use monacoin::blockdata::script::Script;
+use monacoin::hashes::sha256d::Hash as Sha256dHash;
 #[cfg(not(feature = "liquid"))]
-use bitcoin::util::merkleblock::MerkleBlock;
-use bitcoin::{BlockHash, Txid, VarInt};
+use monacoin::util::merkleblock::MerkleBlock;
+use monacoin::{BlockHash, Txid, VarInt};
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use itertools::Itertools;
 use rayon::prelude::*;
 
 #[cfg(not(feature = "liquid"))]
-use bitcoin::consensus::encode::{deserialize, serialize};
+use monacoin::consensus::encode::{deserialize, serialize};
 #[cfg(feature = "liquid")]
 use elements::{
     encode::{deserialize, serialize},

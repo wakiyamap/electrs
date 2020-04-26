@@ -10,7 +10,7 @@ use crate::errors::*;
 use crate::new_index::{ChainQuery, Mempool, ScriptStats, SpendingInput, Utxo};
 use crate::util::{is_spendable, BlockId, Bytes, TransactionStatus};
 
-use bitcoin::Txid;
+use monacoin::Txid;
 
 #[cfg(feature = "liquid")]
 use crate::{

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use bitcoin::hashes::{hex::FromHex, sha256, Hash};
-use bitcoin::{BlockHash, Txid};
+use monacoin::hashes::{hex::FromHex, sha256, Hash};
+use monacoin::{BlockHash, Txid};
 use elements::confidential::{Asset, Value};
 use elements::encode::{deserialize, serialize};
 use elements::{issuance::ContractHash, AssetId, AssetIssuance, OutPoint, Transaction, TxIn};

@@ -5,9 +5,9 @@ use std::sync::mpsc::{Sender, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use bitcoin::hashes::hex::{FromHex, ToHex};
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
-use bitcoin::Txid;
+use monacoin::hashes::hex::{FromHex, ToHex};
+use monacoin::hashes::sha256d::Hash as Sha256dHash;
+use monacoin::Txid;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use error_chain::ChainedError;
@@ -15,7 +15,7 @@ use hex;
 use serde_json::{from_str, Value};
 
 #[cfg(not(feature = "liquid"))]
-use bitcoin::consensus::encode::serialize;
+use monacoin::consensus::encode::serialize;
 #[cfg(feature = "liquid")]
 use elements::encode::serialize;
 

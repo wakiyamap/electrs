@@ -2,7 +2,7 @@ use crate::chain::BlockHeader;
 use crate::errors::*;
 use crate::new_index::BlockEntry;
 
-use bitcoin::{BitcoinHash, BlockHash};
+use monacoin::BlockHash;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -96,7 +96,7 @@ impl HeaderList {
                 panic!(
                     "missing expected blockhash in headers map: {:?}, pointed from: {:?}",
                     blockhash,
-                    headers_chain.last().map(|h| h.bitcoin_hash())
+                    headers_chain.last().map(|h| h.block_hash())
                 )
             });
             blockhash = header.prev_blockhash;
@@ -123,7 +123,7 @@ impl HeaderList {
         }
         let hashed_headers =
             Vec::<HashedHeader>::from_iter(new_headers.into_iter().map(|header| HashedHeader {
-                blockhash: header.bitcoin_hash(),
+                blockhash: header.block_hash(),
                 header,
             }));
         for i in 1..hashed_headers.len() {

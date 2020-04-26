@@ -1,5 +1,5 @@
 #[cfg(not(feature = "liquid"))] // use regular Bitcoin data structures
-pub use bitcoin::{util::address, Block, BlockHeader, OutPoint, Transaction, TxIn, TxOut};
+pub use monacoin::{util::address, Block, BlockHeader, OutPoint, Transaction, TxIn, TxOut};
 
 #[cfg(feature = "liquid")]
 pub use {
@@ -10,10 +10,10 @@ pub use {
     },
 };
 
-use bitcoin::blockdata::constants::genesis_block;
-use bitcoin::network::constants::Network as BNetwork;
-use bitcoin::util::hash::BitcoinHash;
-use bitcoin::BlockHash;
+use monacoin::blockdata::constants::genesis_block;
+use monacoin::network::constants::Network as BNetwork;
+use monacoin::BlockHash;
+
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -30,9 +30,9 @@ lazy_static! {
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Serialize, Ord, PartialOrd, Eq)]
 pub enum Network {
-    Bitcoin,
-    Testnet,
-    Regtest,
+    Monacoin,
+    MonacoinTestnet,
+    MonacoinRegtest,
 
     #[cfg(feature = "liquid")]
     Liquid,
@@ -46,16 +46,16 @@ impl Network {
             return *block_hash;
         }
 
-        let block_hash = genesis_block(BNetwork::from(self)).bitcoin_hash();
+        let block_hash = genesis_block(BNetwork::from(self)).block_hash();
         CACHED_GENESIS.write().unwrap().insert(self, block_hash);
         block_hash
     }
 
     pub fn magic(self) -> u32 {
         match self {
-            Network::Bitcoin => 0xD9B4_BEF9,
-            Network::Testnet => 0x0709_110B,
-            Network::Regtest => 0xDAB5_BFFA,
+            Network::Monacoin => 0xD9B4_BEF9,
+            Network::MonacoinTestnet => 0x0709_110B,
+            Network::MonacoinRegtest => 0xDAB5_BFFA,
 
             #[cfg(feature = "liquid")]
             Network::Liquid => 0xDAB5_BFFA,
@@ -106,16 +106,16 @@ impl Network {
 impl From<&str> for Network {
     fn from(network_name: &str) -> Self {
         match network_name {
-            "mainnet" => Network::Bitcoin,
-            "testnet" => Network::Testnet,
-            "regtest" => Network::Regtest,
+            "mainnet" => Network::Monacoin,
+            "testnet" => Network::MonacoinTestnet,
+            "regtest" => Network::MonacoinRegtest,
 
             #[cfg(feature = "liquid")]
             "liquid" => Network::Liquid,
             #[cfg(feature = "liquid")]
             "liquidregtest" => Network::LiquidRegtest,
 
-            _ => panic!("unsupported Bitcoin network: {:?}", network_name),
+            _ => panic!("unsupported Monacoin network: {:?}", network_name),
         }
     }
 }
@@ -123,14 +123,14 @@ impl From<&str> for Network {
 impl From<Network> for BNetwork {
     fn from(network: Network) -> Self {
         match network {
-            Network::Bitcoin => BNetwork::Bitcoin,
-            Network::Testnet => BNetwork::Testnet,
-            Network::Regtest => BNetwork::Regtest,
+            Network::Monacoin => BNetwork::Monacoin,
+            Network::MonacoinTestnet => BNetwork::MonacoinTestnet,
+            Network::MonacoinRegtest => BNetwork::MonacoinRegtest,
 
             #[cfg(feature = "liquid")]
-            Network::Liquid => BNetwork::Bitcoin, // @FIXME
+            Network::Liquid => BNetwork::Monacoin, // @FIXME
             #[cfg(feature = "liquid")]
-            Network::LiquidRegtest => BNetwork::Regtest, // @FIXME
+            Network::LiquidRegtest => BNetwork::MonacoinRegtest, // @FIXME
         }
     }
 }
@@ -139,15 +139,15 @@ impl From<BNetwork> for Network {
     fn from(network: BNetwork) -> Self {
         match network {
             #[cfg(not(feature = "liquid"))]
-            BNetwork::Bitcoin => Network::Bitcoin,
+            BNetwork::Monacoin => Network::Monacoin,
             #[cfg(not(feature = "liquid"))]
-            BNetwork::Regtest => Network::Regtest,
+            BNetwork::MonacoinRegtest => Network::MonacoinRegtest,
 
             #[cfg(feature = "liquid")]
-            BNetwork::Bitcoin => Network::Liquid, // @FIXME
+            BNetwork::Monacoin => Network::Liquid, // @FIXME
             #[cfg(feature = "liquid")]
-            BNetwork::Regtest => Network::LiquidRegtest, // @FIXME
-            BNetwork::Testnet => Network::Testnet, // @FIXME
+            BNetwork::MonacoinRegtest => Network::LiquidRegtest, // @FIXME
+            BNetwork::MonacoinTestnet => Network::MonacoinTestnet, // @FIXME
         }
     }
 }

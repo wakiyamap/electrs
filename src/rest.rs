@@ -9,10 +9,10 @@ use crate::util::{
 };
 
 #[cfg(not(feature = "liquid"))]
-use bitcoin::consensus::encode;
-use bitcoin::hashes::hex::{FromHex, ToHex};
-use bitcoin::hashes::Error as HashError;
-use bitcoin::{BitcoinHash, BlockHash, Script, Txid};
+use monacoin::consensus::encode;
+use monacoin::hashes::hex::{FromHex, ToHex};
+use monacoin::hashes::Error as HashError;
+use monacoin::{BlockHash, Script, Txid};
 use futures::sync::oneshot;
 use hex::{self, FromHexError};
 use hyper::rt::{self, Future, Stream};
@@ -75,7 +75,7 @@ impl BlockValue {
     fn new(blockhm: BlockHeaderMeta, network: Network) -> Self {
         let header = blockhm.header_entry.header();
         BlockValue {
-            id: header.bitcoin_hash().to_hex(),
+            id: header.block_hash().to_hex(),
             height: blockhm.header_entry.height() as u32,
             version: header.version,
             timestamp: header.time,
@@ -94,7 +94,7 @@ impl BlockValue {
             #[cfg(not(feature = "liquid"))]
             nonce: header.nonce,
             #[cfg(not(feature = "liquid"))]
-            difficulty: header.difficulty(bitcoin::Network::from(network)),
+            difficulty: header.difficulty(monacoin::Network::from(network)),
 
             #[cfg(feature = "liquid")]
             ext: Some(json!(header.ext)),
@@ -877,7 +877,7 @@ fn handle_request(
 
             let height = query
                 .chain()
-                .height_by_hash(&merkleblock.header.bitcoin_hash());
+                .height_by_hash(&merkleblock.header.block_hash());
 
             http_message(
                 StatusCode::OK,
@@ -1108,7 +1108,7 @@ fn address_to_scripthash(addr: &str, network: Network) -> Result<FullHash, HttpE
     #[cfg(not(feature = "liquid"))]
     let is_expected_net = {
         let addr_network = Network::from(addr.network);
-        addr_network == network || (addr_network == Network::Testnet && network == Network::Regtest)
+        addr_network == network || (addr_network == Network::MonacoinTestnet && network == Network::MonacoinRegtest)
     };
 
     #[cfg(feature = "liquid")]
@@ -1165,16 +1165,16 @@ impl From<FromHexError> for HttpError {
         HttpError::from("Invalid hex string".to_string())
     }
 }
-impl From<bitcoin::hashes::hex::Error> for HttpError {
-    fn from(_e: bitcoin::hashes::hex::Error) -> Self {
+impl From<monacoin::hashes::hex::Error> for HttpError {
+    fn from(_e: monacoin::hashes::hex::Error) -> Self {
         //HttpError::from(e.description().to_string())
         HttpError::from("Invalid hex string".to_string())
     }
 }
-impl From<bitcoin::util::address::Error> for HttpError {
-    fn from(_e: bitcoin::util::address::Error) -> Self {
+impl From<monacoin::util::address::Error> for HttpError {
+    fn from(_e: monacoin::util::address::Error) -> Self {
         //HttpError::from(e.description().to_string())
-        HttpError::from("Invalid Bitcoin address".to_string())
+        HttpError::from("Invalid Monacoin address".to_string())
     }
 }
 impl From<errors::Error> for HttpError {

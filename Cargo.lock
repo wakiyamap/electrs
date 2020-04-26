@@ -1034,7 +1034,7 @@ dependencies = [
 [[package]]
 name = "monacoin"
 version = "0.23.0"
-source = "git+https://github.com/wakiyamap/rust-monacoin/?rev=670d749a02b6f711ce09ac57b1d065dbd73e014b#670d749a02b6f711ce09ac57b1d065dbd73e014b"
+source = "git+https://github.com/wakiyamap/rust-monacoin/?rev=dd13a3f6c7889b7d4ce1d1dd9b8f2badf197bade#dd13a3f6c7889b7d4ce1d1dd9b8f2badf197bade"
 dependencies = [
  "bech32",
  "bitcoin_hashes",
