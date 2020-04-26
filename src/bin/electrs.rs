@@ -21,9 +21,6 @@ use electrs::{
     signal::Waiter,
 };
 
-#[cfg(feature = "liquid")]
-use electrs::elements::AssetRegistry;
-
 fn fetch_from(config: &Config, store: &Store) -> FetchFrom {
     let mut jsonrpc_import = config.jsonrpc_import;
     if !jsonrpc_import {
@@ -82,20 +79,10 @@ fn run_server(config: Arc<Config>) -> Result<()> {
     )));
     mempool.write().unwrap().update(&daemon)?;
 
-    #[cfg(feature = "liquid")]
-    let asset_db = config
-        .asset_db_path
-        .as_ref()
-        .map(|dir| AssetRegistry::new(dir.clone()));
-
     let query = Arc::new(Query::new(
         Arc::clone(&chain),
         Arc::clone(&mempool),
         Arc::clone(&daemon),
-        #[cfg(feature = "liquid")]
-        config.network_type,
-        #[cfg(feature = "liquid")]
-        asset_db,
     ));
 
     // TODO: configuration for which servers to start

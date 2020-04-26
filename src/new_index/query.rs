@@ -12,12 +12,6 @@ use crate::util::{is_spendable, BlockId, Bytes, TransactionStatus};
 
 use monacoin::Txid;
 
-#[cfg(feature = "liquid")]
-use crate::{
-    chain::{AssetId, Network},
-    elements::{lookup_asset, AssetRegistry, LiquidAsset},
-};
-
 const FEE_ESTIMATES_TTL: u64 = 60; // seconds
 
 const CONF_TARGETS: [u16; 28] = [

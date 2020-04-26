@@ -1,8 +1,5 @@
 use monacoin::blockdata::script::{Instruction::PushBytes, Script};
 
-#[cfg(feature = "liquid")]
-use elements::address as elements_address;
-
 use crate::chain::Network;
 use crate::chain::{TxIn, TxOut};
 
@@ -12,14 +9,7 @@ pub struct InnerScripts {
 }
 
 pub fn script_to_address(script: &Script, network: Network) -> Option<String> {
-    match network {
-        #[cfg(feature = "liquid")]
-        Network::Liquid | Network::LiquidRegtest => {
-            elements_address::Address::from_script(script, None, network.address_params())
-                .map(|a| a.to_string())
-        }
-        _ => monacoin::Address::from_script(script, network.into()).map(|s| s.to_string()),
-    }
+    monacoin::Address::from_script(script, network.into()).map(|s| s.to_string())
 }
 
 pub fn get_script_asm(script: &Script) -> String {
@@ -45,8 +35,6 @@ pub fn get_innerscripts(txin: &TxIn, prevout: &TxOut) -> InnerScripts {
         || redeem_script.as_ref().map_or(false, |s| s.is_v0_p2wsh())
     {
         let witness = &txin.witness;
-        #[cfg(feature = "liquid")]
-        let witness = &witness.script_witness;
         witness.iter().last().cloned().map(Script::from)
     } else {
         None

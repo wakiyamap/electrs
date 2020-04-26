@@ -164,18 +164,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02b4ff8b16e6076c3e14220b39fbc1fabb6737522281a388998046859400895f"
 
 [[package]]
-name = "bitcoin"
-version = "0.23.0"
-source = "git+https://github.com/blockstream/rust-bitcoin?rev=0.23-electrs#dd131855022c2cdd691a531c1d5c2f5ab707e4d4"
-dependencies = [
- "bech32",
- "bitcoin_hashes",
- "hex 0.3.2",
- "secp256k1",
- "serde",
-]
-
-[[package]]
 name = "bitcoin_hashes"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -490,16 +478,14 @@ dependencies = [
  "arrayref",
  "base64 0.12.0",
  "bincode",
- "bitcoin",
  "chan",
  "chan-signal",
  "clap",
  "dirs",
- "elements",
  "error-chain",
  "futures",
  "glob",
- "hex 0.4.2",
+ "hex",
  "hyper",
  "itertools",
  "lazy_static 1.4.0",
@@ -524,16 +510,6 @@ dependencies = [
  "time",
  "tiny_http",
  "url 2.1.1",
-]
-
-[[package]]
-name = "elements"
-version = "0.12.1"
-source = "git+https://github.com/elementsproject/rust-elements?rev=fc27e53046d531b5ea65617fbfeea62e84ba10d4#fc27e53046d531b5ea65617fbfeea62e84ba10d4"
-dependencies = [
- "bitcoin",
- "bitcoin_hashes",
- "serde",
 ]
 
 [[package]]
@@ -703,18 +679,12 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a0d737e0f947a1864e93d33fdef4af8445a00d1ed8dc0c8ddb73139ea6abf15"
+checksum = "61565ff7aaace3525556587bd2dc31d4a07071957be715e63ce7b1eccf51a8f4"
 dependencies = [
  "libc",
 ]
-
-[[package]]
-name = "hex"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
 
 [[package]]
 name = "hex"

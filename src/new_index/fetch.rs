@@ -3,9 +3,6 @@ use crate::chain::Block;
 use monacoin::BlockHash;
 use rayon::prelude::*;
 
-#[cfg(feature = "liquid")]
-use elements::encode::{deserialize, Decodable};
-#[cfg(not(feature = "liquid"))]
 use monacoin::consensus::encode::{deserialize, Decodable};
 
 use std::collections::HashMap;

@@ -12,9 +12,6 @@ use monacoin::hashes::hex::{FromHex, ToHex};
 use monacoin::{BlockHash, Txid};
 use serde_json::{from_str, from_value, Value};
 
-#[cfg(feature = "liquid")]
-use elements::encode::{deserialize, serialize};
-#[cfg(not(feature = "liquid"))]
 use monacoin::consensus::encode::{deserialize, serialize};
 
 use crate::chain::{Block, BlockHeader, Network, Transaction};

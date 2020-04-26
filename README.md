@@ -15,7 +15,7 @@ Install Rust, Bitcoin Core and the `clang` and `cmake` packages, then:
 ```bash
 $ git clone https://github.com/blockstream/electrs && cd electrs
 $ git checkout new-index
-$ cargo run --release --bin electrs -- -vvvv --daemon-dir ~/.bitcoin
+$ cargo run --release --bin electrs -- -vvvv --daemon-dir ~/.monacoin
 
 # Or for liquid:
 $ cargo run --features liquid --release --bin electrs -- -vvvv --network liquid --daemon-dir ~/.liquid
@@ -56,9 +56,6 @@ but instead queried from bitcoind on demand.
   With these new indexes, bitcoind is no longer queried to serve user requests and is only polled
   periodically for new blocks and for syncing the mempool.
 
-- Support for Liquid and other Elements-based networks, including CT, peg-in/out and multi-asset.
-  (requires enabling the `liquid` feature flag using `--features liquid`)
-
 ### CLI options
 
 In addition to electrs's original configuration options, a few new options are also available:
@@ -68,7 +65,6 @@ In addition to electrs's original configuration options, a few new options are a
 - `--disable-prevout` - disable attaching previous output information to inputs.
   This significantly reduces the amount of transaction lookups (and IO/CPU/memory usage),
   at the cost of not knowing inputs amounts, their previous script/address, and the transaction fee.
-- `--parent-network <network>` - the parent network this chain is pegged to (Elements/Liquid only).
 - `--cors <origins>` - origins allowed to make cross-site request (optional, defaults to none).
 - `--address-search` - enables the by-prefix address search index.
 

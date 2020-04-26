@@ -14,9 +14,6 @@ use monacoin::hashes::sha256d::Hash as Sha256dHash;
 use monacoin::Txid;
 use serde_json::{from_str, Value};
 
-#[cfg(feature = "liquid")]
-use elements::encode::serialize;
-#[cfg(not(feature = "liquid"))]
 use monacoin::consensus::encode::serialize;
 
 use crate::config::Config;

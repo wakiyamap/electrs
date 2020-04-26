@@ -31,11 +31,6 @@ pub struct Config {
     pub cors: Option<String>,
     pub precache_scripts: Option<String>,
     pub electrum_txs_limit: usize,
-
-    #[cfg(feature = "liquid")]
-    pub parent_network: Network,
-    #[cfg(feature = "liquid")]
-    pub asset_db_path: Option<PathBuf>,
 }
 
 fn str_to_socketaddr(address: &str, what: &str) -> SocketAddr {
@@ -154,21 +149,6 @@ impl Config {
                     .default_value("100")
             );
 
-        #[cfg(feature = "liquid")]
-        let args = args
-            .arg(
-                Arg::with_name("parent_network")
-                    .long("parent-network")
-                    .help("Select parent network type (mainnet, testnet, regtest)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("asset_db_path")
-                    .long("asset-db-path")
-                    .help("Directory for liquid/elements asset db")
-                    .takes_value(true),
-            );
-
         let m = args.get_matches();
 
         let network_name = m.value_of("network").unwrap_or("mainnet");
@@ -176,58 +156,25 @@ impl Config {
         let db_dir = Path::new(m.value_of("db_dir").unwrap_or("./db"));
         let db_path = db_dir.join(network_name);
 
-        #[cfg(feature = "liquid")]
-        let parent_network = m
-            .value_of("parent_network")
-            .map(Network::from)
-            .unwrap_or_else(|| match network_type {
-                Network::Liquid => Network::Monacoin,
-                Network::LiquidRegtest => Network::MonacoinRegtest,
-                _ => panic!("unknown liquid network, --parent-network is required"),
-            });
-
-        #[cfg(feature = "liquid")]
-        let asset_db_path = m.value_of("asset_db_path").map(PathBuf::from);
-
         let default_daemon_port = match network_type {
             Network::Monacoin => 9401,
             Network::MonacoinTestnet => 19403,
             Network::MonacoinRegtest => 18443,
-
-            #[cfg(feature = "liquid")]
-            Network::Liquid => 7041,
-            #[cfg(feature = "liquid")]
-            Network::LiquidRegtest => 7041,
         };
         let default_electrum_port = match network_type {
             Network::Monacoin => 50001,
             Network::MonacoinTestnet => 60001,
             Network::MonacoinRegtest => 60401,
-
-            #[cfg(feature = "liquid")]
-            Network::Liquid => 51000,
-            #[cfg(feature = "liquid")]
-            Network::LiquidRegtest => 51401,
         };
         let default_http_port = match network_type {
             Network::Monacoin => 3000,
             Network::MonacoinTestnet => 3001,
             Network::MonacoinRegtest => 3002,
-
-            #[cfg(feature = "liquid")]
-            Network::Liquid => 3000,
-            #[cfg(feature = "liquid")]
-            Network::LiquidRegtest => 3002,
         };
         let default_monitoring_port = match network_type {
             Network::Monacoin => 4224,
             Network::MonacoinTestnet => 14224,
             Network::MonacoinRegtest => 24224,
-
-            #[cfg(feature = "liquid")]
-            Network::Liquid => 34224,
-            #[cfg(feature = "liquid")]
-            Network::LiquidRegtest => 44224,
         };
 
         let daemon_rpc_addr: SocketAddr = str_to_socketaddr(
@@ -263,11 +210,6 @@ impl Config {
             Network::Monacoin => (),
             Network::MonacoinTestnet => daemon_dir.push("testnet4"),
             Network::MonacoinRegtest => daemon_dir.push("regtest"),
-
-            #[cfg(feature = "liquid")]
-            Network::Liquid => daemon_dir.push("liquidv1"),
-            #[cfg(feature = "liquid")]
-            Network::LiquidRegtest => daemon_dir.push("liquidregtest"),
         }
         let cookie = m.value_of("cookie").map(|s| s.to_owned());
 
@@ -296,11 +238,6 @@ impl Config {
             cors: m.value_of("cors").map(|s| s.to_string()),
             precache_scripts: m.value_of("precache_scripts").map(|s| s.to_string()),
             electrum_txs_limit: value_t_or_exit!(m, "electrum_txs_limit", usize),
-
-            #[cfg(feature = "liquid")]
-            parent_network,
-            #[cfg(feature = "liquid")]
-            asset_db_path,
         };
         eprintln!("{:?}", config);
         config

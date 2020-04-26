@@ -13,7 +13,6 @@ edition = "2018"
 
 [features]
 default = [ "rocksdb" ]
-liquid = [ "elements" ]
 oldcpu = [ "rocksdb-oldcpu" ]
 
 [dependencies]
@@ -53,15 +52,6 @@ time = "0.1"
 tiny_http = "0.6"
 url = "2.1.1"
 
-[dependencies.bitcoin]
-version = "0.23.0"
-features = ["use-serde"]
-
-[dependencies.elements]
-optional = true
-version = "0.12.1"
-features = ["serde-feature"]
-
 [dev-dependencies]
 tempfile = "3.1"
 
@@ -69,11 +59,3 @@ tempfile = "3.1"
 lto = true
 panic = 'abort'
 codegen-units = 1
-
-[patch.crates-io.bitcoin]
-git = "https://github.com/blockstream/rust-bitcoin"
-rev = "0.23-electrs"
-
-[patch.crates-io.elements]
-git = "https://github.com/elementsproject/rust-elements"
-rev = "fc27e53046d531b5ea65617fbfeea62e84ba10d4"
