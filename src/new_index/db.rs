@@ -218,7 +218,6 @@ mod tests {
     use crate::config::Config;
     use crate::new_index::db::{DBRow, DB};
     use std::sync::Arc;
-    use tempfile;
 
     #[test]
     fn test_db_iterator() {
