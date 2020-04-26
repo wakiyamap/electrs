@@ -1,6 +1,5 @@
 extern crate electrs;
 
-use bincode;
 use electrs::{
     config::Config,
     new_index::{Store, TxHistoryKey},
