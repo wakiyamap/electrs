@@ -16,9 +16,6 @@ Install Rust, Bitcoin Core and the `clang` and `cmake` packages, then:
 $ git clone https://github.com/blockstream/electrs && cd electrs
 $ git checkout new-index
 $ cargo run --release --bin electrs -- -vvvv --daemon-dir ~/.monacoin
-
-# Or for liquid:
-$ cargo run --features liquid --release --bin electrs -- -vvvv --network liquid --daemon-dir ~/.liquid
 ```
 
 See [electrs's original documentation](https://github.com/romanz/electrs/blob/master/doc/usage.md) for more detailed instructions.

@@ -25,15 +25,9 @@ pub struct Query {
     daemon: Arc<Daemon>,
     cached_estimates: RwLock<(HashMap<u16, f32>, Option<Instant>)>,
     cached_relayfee: RwLock<Option<f64>>,
-
-    #[cfg(feature = "liquid")]
-    pub network: Network,
-    #[cfg(feature = "liquid")]
-    asset_db: Option<AssetRegistry>,
 }
 
 impl Query {
-    #[cfg(not(feature = "liquid"))]
     pub fn new(chain: Arc<ChainQuery>, mempool: Arc<RwLock<Mempool>>, daemon: Arc<Daemon>) -> Self {
         Query {
             chain,
@@ -183,29 +177,5 @@ impl Query {
         let relayfee = self.daemon.get_relayfee()?;
         self.cached_relayfee.write().unwrap().replace(relayfee);
         Ok(relayfee)
-    }
-
-    #[cfg(feature = "liquid")]
-    pub fn new(
-        chain: Arc<ChainQuery>,
-        mempool: Arc<RwLock<Mempool>>,
-        daemon: Arc<Daemon>,
-        network: Network,
-        asset_db: Option<AssetRegistry>,
-    ) -> Self {
-        Query {
-            chain,
-            mempool,
-            daemon,
-            network,
-            asset_db,
-            cached_estimates: RwLock::new((HashMap::new(), None)),
-            cached_relayfee: RwLock::new(None),
-        }
-    }
-
-    #[cfg(feature = "liquid")]
-    pub fn lookup_asset(&self, asset_id: &AssetId) -> Result<Option<LiquidAsset>> {
-        lookup_asset(&self, self.asset_db.as_ref(), asset_id)
     }
 }

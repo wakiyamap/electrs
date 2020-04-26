@@ -6,10 +6,12 @@ rust:
 cache: cargo
 
 before_script:
-  - rustup component add rustfmt-preview
+  - rustup component add clippy rustfmt-preview
 
 script:
   - cargo fmt --all -- --check
   - cargo check --all
   - cargo build --all
+  - cargo clippy --all-targets --all-features -- -D warnings
   - cargo test --all
+  - cargo clean

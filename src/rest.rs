@@ -1044,9 +1044,7 @@ mod tests {
         let confirmations = v
             .get("confirmations")
             .and_then(|el| el.as_u64())
-            .ok_or(HttpError::from(
-                "confirmations absent or not a u64".to_string(),
-            ))
+            .ok_or_else(|| HttpError::from("confirmations absent or not a u64".to_string()))
             .unwrap();
 
         assert_eq!(10, confirmations);
@@ -1054,7 +1052,7 @@ mod tests {
         let err = v
             .get("notexist")
             .and_then(|el| el.as_u64())
-            .ok_or(HttpError::from("notexist absent or not a u64".to_string()));
+            .ok_or_else(|| HttpError::from("notexist absent or not a u64".to_string()));
 
         assert!(err.is_err());
     }

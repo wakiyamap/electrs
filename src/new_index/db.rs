@@ -59,8 +59,8 @@ impl<'a> Iterator for ReverseScanIterator<'a> {
         }
 
         let row = DBRow {
-            key: key.into(),
-            value: self.iter.value().unwrap().into(),
+            key: key.to_vec(),
+            value: self.iter.value().unwrap().to_vec(),
         };
 
         self.iter.prev();
