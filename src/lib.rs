@@ -2,7 +2,6 @@
 
 extern crate base64;
 extern crate bincode;
-extern crate monacoin;
 extern crate chan_signal;
 extern crate crypto;
 extern crate dirs;
@@ -13,6 +12,7 @@ extern crate itertools;
 extern crate libc;
 extern crate lru;
 extern crate lru_cache;
+extern crate monacoin;
 extern crate num_cpus;
 extern crate page_size;
 extern crate prometheus;

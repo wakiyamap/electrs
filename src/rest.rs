@@ -8,16 +8,16 @@ use crate::util::{
     TransactionStatus,
 };
 
-#[cfg(not(feature = "liquid"))]
-use monacoin::consensus::encode;
-use monacoin::hashes::hex::{FromHex, ToHex};
-use monacoin::hashes::Error as HashError;
-use monacoin::{BlockHash, Script, Txid};
 use futures::sync::oneshot;
 use hex::{self, FromHexError};
 use hyper::rt::{self, Future, Stream};
 use hyper::service::service_fn;
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
+#[cfg(not(feature = "liquid"))]
+use monacoin::consensus::encode;
+use monacoin::hashes::hex::{FromHex, ToHex};
+use monacoin::hashes::Error as HashError;
+use monacoin::{BlockHash, Script, Txid};
 
 #[cfg(feature = "liquid")]
 use {
@@ -1108,7 +1108,8 @@ fn address_to_scripthash(addr: &str, network: Network) -> Result<FullHash, HttpE
     #[cfg(not(feature = "liquid"))]
     let is_expected_net = {
         let addr_network = Network::from(addr.network);
-        addr_network == network || (addr_network == Network::MonacoinTestnet && network == Network::MonacoinRegtest)
+        addr_network == network
+            || (addr_network == Network::MonacoinTestnet && network == Network::MonacoinRegtest)
     };
 
     #[cfg(feature = "liquid")]

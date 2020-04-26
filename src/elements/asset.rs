@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use monacoin::hashes::{hex::FromHex, sha256, Hash};
-use monacoin::{BlockHash, Txid};
 use elements::confidential::{Asset, Value};
 use elements::encode::{deserialize, serialize};
 use elements::{issuance::ContractHash, AssetId, AssetIssuance, OutPoint, Transaction, TxIn};
+use monacoin::hashes::{hex::FromHex, sha256, Hash};
+use monacoin::{BlockHash, Txid};
 
 use crate::chain::Network;
 use crate::elements::peg::{get_pegin_data, get_pegout_data, PeginInfo, PegoutInfo};

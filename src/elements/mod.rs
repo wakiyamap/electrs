@@ -1,5 +1,5 @@
-use monacoin::hashes::{hex::ToHex, Hash};
 use elements::{confidential::Value, encode::serialize, issuance::ContractHash, AssetId, TxIn};
+use monacoin::hashes::{hex::ToHex, Hash};
 
 pub mod asset;
 pub mod peg;

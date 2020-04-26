@@ -14,7 +14,6 @@ use monacoin::blockdata::constants::genesis_block;
 use monacoin::network::constants::Network as BNetwork;
 use monacoin::BlockHash;
 
-
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

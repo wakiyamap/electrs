@@ -9,8 +9,6 @@ fn main() {
     use std::collections::HashSet;
     use std::sync::Arc;
 
-    use monacoin::blockdata::script::Script;
-    use monacoin::consensus::encode::deserialize;
     use electrs::{
         chain::Transaction,
         config::Config,
@@ -20,6 +18,8 @@ fn main() {
         signal::Waiter,
         util::has_prevout,
     };
+    use monacoin::blockdata::script::Script;
+    use monacoin::consensus::encode::deserialize;
 
     let signal = Waiter::start();
     let config = Config::from_args();

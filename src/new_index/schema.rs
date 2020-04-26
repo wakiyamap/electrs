@@ -1,21 +1,21 @@
 use bincode;
+use crypto::digest::Digest;
+use crypto::sha2::Sha256;
+use itertools::Itertools;
 use monacoin::blockdata::script::Script;
 use monacoin::hashes::sha256d::Hash as Sha256dHash;
 #[cfg(not(feature = "liquid"))]
 use monacoin::util::merkleblock::MerkleBlock;
 use monacoin::{BlockHash, Txid, VarInt};
-use crypto::digest::Digest;
-use crypto::sha2::Sha256;
-use itertools::Itertools;
 use rayon::prelude::*;
 
-#[cfg(not(feature = "liquid"))]
-use monacoin::consensus::encode::{deserialize, serialize};
 #[cfg(feature = "liquid")]
 use elements::{
     encode::{deserialize, serialize},
     AssetId,
 };
+#[cfg(not(feature = "liquid"))]
+use monacoin::consensus::encode::{deserialize, serialize};
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;

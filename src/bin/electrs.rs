@@ -1,5 +1,5 @@
-extern crate monacoin;
 extern crate error_chain;
+extern crate monacoin;
 #[macro_use]
 extern crate log;
 

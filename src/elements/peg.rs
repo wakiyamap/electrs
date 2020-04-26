@@ -1,5 +1,5 @@
-use monacoin::{hashes::hex::ToHex, Script};
 use elements::{confidential::Asset, PeginData, PegoutData, TxIn, TxOut};
+use monacoin::{hashes::hex::ToHex, Script};
 
 use crate::chain::Network;
 use crate::util::{get_script_asm, script_to_address, FullHash};

@@ -1,12 +1,12 @@
 use arraydeque::{ArrayDeque, Wrapping};
+use itertools::Itertools;
 use monacoin::consensus::encode::deserialize;
 use monacoin::Txid;
-use itertools::Itertools;
 
-#[cfg(not(feature = "liquid"))]
-use monacoin::consensus::encode::serialize;
 #[cfg(feature = "liquid")]
 use elements::{encode::serialize, AssetId};
+#[cfg(not(feature = "liquid"))]
+use monacoin::consensus::encode::serialize;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::iter::FromIterator;
