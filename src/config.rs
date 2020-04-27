@@ -156,8 +156,8 @@ impl Config {
         let db_path = db_dir.join(network_name);
 
         let default_daemon_port = match network_type {
-            Network::Monacoin => 9401,
-            Network::MonacoinTestnet => 19403,
+            Network::Monacoin => 9402,
+            Network::MonacoinTestnet => 19402,
             Network::MonacoinRegtest => 18443,
         };
         let default_electrum_port = match network_type {

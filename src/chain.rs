@@ -34,8 +34,8 @@ impl Network {
 
     pub fn magic(self) -> u32 {
         match self {
-            Network::Monacoin => 0xD9B4_BEF9,
-            Network::MonacoinTestnet => 0x0709_110B,
+            Network::Monacoin => 0xDBB6_C0FB,
+            Network::MonacoinTestnet => 0xF1C8_D2FD,
             Network::MonacoinRegtest => 0xDAB5_BFFA,
         }
     }
