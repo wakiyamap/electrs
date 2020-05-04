@@ -541,7 +541,8 @@ impl Daemon {
                         "failed estimating fee for target {}: {:?}",
                         target, reply["errors"]
                     );
-                    return None;
+                    // return None;
+                    return Some((*target, (-100_000f64) as f32));
                 }
 
                 let feerate = reply["feerate"]
