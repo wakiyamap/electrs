@@ -528,7 +528,7 @@ impl Daemon {
     // Get estimated feerates for the provided confirmation targets using a batch RPC request
     // Missing estimates are logged but do not cause a failure, whatever is available is returned
     #[allow(clippy::float_cmp)]
-    pub fn estimatesmartfee_batch(&self, conf_targets: &[u16]) -> Result<HashMap<u16, f32>> {
+    pub fn estimatesmartfee_batch(&self, conf_targets: &[u16]) -> Result<HashMap<u16, f64>> {
         let params_list: Vec<Value> = conf_targets.iter().map(|t| json!([t])).collect();
 
         Ok(self
@@ -542,7 +542,7 @@ impl Daemon {
                         target, reply["errors"]
                     );
                     // return None;
-                    return Some((*target, (-100_000f64) as f32));
+                    return Some((*target, -100_000f64));
                 }
 
                 let feerate = reply["feerate"]
@@ -555,7 +555,7 @@ impl Daemon {
                 }
 
                 // from BTC/kB to sat/b
-                Some((*target, (feerate * 100_000f64) as f32))
+                Some((*target, feerate * 100_000f64))
             })
             .collect())
     }

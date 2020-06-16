@@ -85,8 +85,7 @@ struct TransactionValue {
     vout: Vec<TxOutValue>,
     size: u32,
     weight: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    fee: Option<u64>,
+    fee: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     status: Option<TransactionStatus>,
 }
@@ -113,11 +112,7 @@ impl TransactionValue {
             .map(|txout| TxOutValue::new(txout, config))
             .collect();
 
-        let fee = if config.prevout_enabled {
-            Some(get_tx_fee(&tx, &prevouts, config.network_type))
-        } else {
-            None
-        };
+        let fee = get_tx_fee(&tx, &prevouts, config.network_type);
 
         TransactionValue {
             txid: tx.txid(),
@@ -310,21 +305,17 @@ fn prepare_txs(
     query: &Query,
     config: &Config,
 ) -> Vec<TransactionValue> {
-    let prevouts = if config.prevout_enabled {
-        let outpoints = txs
-            .iter()
-            .flat_map(|(tx, _)| {
-                tx.input
-                    .iter()
-                    .filter(|txin| has_prevout(txin))
-                    .map(|txin| txin.previous_output)
-            })
-            .collect();
+    let outpoints = txs
+        .iter()
+        .flat_map(|(tx, _)| {
+            tx.input
+                .iter()
+                .filter(|txin| has_prevout(txin))
+                .map(|txin| txin.previous_output)
+        })
+        .collect();
 
-        query.lookup_txos(&outpoints)
-    } else {
-        HashMap::new()
-    };
+    let prevouts = query.lookup_txos(&outpoints);
 
     txs.into_iter()
         .map(|(tx, blockid)| TransactionValue::new(tx, blockid, &prevouts, config))
@@ -663,7 +654,7 @@ fn handle_request(
         ) => {
             let script_hash = to_scripthash(script_type, script_str, config.network_type)?;
             let utxos: Vec<UtxoValue> = query
-                .utxo(&script_hash[..])
+                .utxo(&script_hash[..])?
                 .into_iter()
                 .map(UtxoValue::from)
                 .collect();
@@ -921,9 +912,6 @@ impl HttpError {
     fn not_found(msg: String) -> Self {
         HttpError(StatusCode::NOT_FOUND, msg)
     }
-    fn generic() -> Self {
-        HttpError::from("We encountered an error. Please try again later.".to_string())
-    }
 }
 
 impl From<String> for HttpError {
@@ -968,25 +956,23 @@ impl From<errors::Error> for HttpError {
             "getblock RPC error: {\"code\":-5,\"message\":\"Block not found\"}" => {
                 HttpError::not_found("Block not found".to_string())
             }
-            _ => HttpError::generic(),
+            _ => HttpError::from(e.to_string()),
         }
     }
 }
 impl From<serde_json::Error> for HttpError {
-    fn from(_e: serde_json::Error) -> Self {
-        //HttpError::from(e.description().to_string())
-        HttpError::generic()
+    fn from(e: serde_json::Error) -> Self {
+        HttpError::from(e.to_string())
     }
 }
 impl From<encode::Error> for HttpError {
-    fn from(_e: encode::Error) -> Self {
-        //HttpError::from(e.description().to_string())
-        HttpError::generic()
+    fn from(e: encode::Error) -> Self {
+        HttpError::from(e.to_string())
     }
 }
 impl From<std::string::FromUtf8Error> for HttpError {
-    fn from(_e: std::string::FromUtf8Error) -> Self {
-        HttpError::generic()
+    fn from(e: std::string::FromUtf8Error) -> Self {
+        HttpError::from(e.to_string())
     }
 }
 

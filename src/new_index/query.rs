@@ -4,7 +4,8 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::time::{Duration, Instant};
 
-use crate::chain::{OutPoint, Transaction, TxOut};
+use crate::chain::{Network, OutPoint, Transaction, TxOut};
+use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::errors::*;
 use crate::new_index::{ChainQuery, Mempool, ScriptStats, SpendingInput, Utxo};
@@ -23,16 +24,23 @@ pub struct Query {
     chain: Arc<ChainQuery>, // TODO: should be used as read-only
     mempool: Arc<RwLock<Mempool>>,
     daemon: Arc<Daemon>,
-    cached_estimates: RwLock<(HashMap<u16, f32>, Option<Instant>)>,
+    config: Arc<Config>,
+    cached_estimates: RwLock<(HashMap<u16, f64>, Option<Instant>)>,
     cached_relayfee: RwLock<Option<f64>>,
 }
 
 impl Query {
-    pub fn new(chain: Arc<ChainQuery>, mempool: Arc<RwLock<Mempool>>, daemon: Arc<Daemon>) -> Self {
+    pub fn new(
+        chain: Arc<ChainQuery>,
+        mempool: Arc<RwLock<Mempool>>,
+        daemon: Arc<Daemon>,
+        config: Arc<Config>,
+    ) -> Self {
         Query {
             chain,
             mempool,
             daemon,
+            config,
             cached_estimates: RwLock::new((HashMap::new(), None)),
             cached_relayfee: RwLock::new(None),
         }
@@ -40,6 +48,14 @@ impl Query {
 
     pub fn chain(&self) -> &ChainQuery {
         &self.chain
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
+    pub fn network(&self) -> Network {
+        self.config.network_type
     }
 
     pub fn mempool(&self) -> RwLockReadGuard<Mempool> {
@@ -55,12 +71,12 @@ impl Query {
         Ok(txid)
     }
 
-    pub fn utxo(&self, scripthash: &[u8]) -> Vec<Utxo> {
-        let mut utxos = self.chain.utxo(scripthash);
+    pub fn utxo(&self, scripthash: &[u8]) -> Result<Vec<Utxo>> {
+        let mut utxos = self.chain.utxo(scripthash, self.config.utxos_limit)?;
         let mempool = self.mempool();
         utxos.retain(|utxo| !mempool.has_spend(&OutPoint::from(utxo)));
         utxos.extend(mempool.utxo(scripthash));
-        utxos
+        Ok(utxos)
     }
 
     pub fn history_txids(&self, scripthash: &[u8], limit: usize) -> Vec<(Txid, Option<BlockId>)> {
@@ -131,7 +147,7 @@ impl Query {
         TransactionStatus::from(self.chain.tx_confirming_block(txid))
     }
 
-    pub fn estimate_fee(&self, conf_target: u16) -> Option<f32> {
+    pub fn estimate_fee(&self, conf_target: u16) -> Option<f64> {
         if let (ref cache, Some(cache_time)) = *self.cached_estimates.read().unwrap() {
             if cache_time.elapsed() < Duration::from_secs(FEE_ESTIMATES_TTL) {
                 return cache.get(&conf_target).copied();
@@ -147,7 +163,7 @@ impl Query {
             .copied()
     }
 
-    pub fn estimate_fee_map(&self) -> HashMap<u16, f32> {
+    pub fn estimate_fee_map(&self) -> HashMap<u16, f64> {
         if let (ref cache, Some(cache_time)) = *self.cached_estimates.read().unwrap() {
             if cache_time.elapsed() < Duration::from_secs(FEE_ESTIMATES_TTL) {
                 return cache.clone();

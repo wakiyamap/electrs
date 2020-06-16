@@ -83,6 +83,7 @@ fn run_server(config: Arc<Config>) -> Result<()> {
         Arc::clone(&chain),
         Arc::clone(&mempool),
         Arc::clone(&daemon),
+        Arc::clone(&config),
     ));
 
     // TODO: configuration for which servers to start
@@ -90,7 +91,7 @@ fn run_server(config: Arc<Config>) -> Result<()> {
     let electrum_server = ElectrumRPC::start(Arc::clone(&config), Arc::clone(&query), &metrics);
 
     loop {
-        if let Err(err) = signal.wait(Duration::from_secs(5)) {
+        if let Err(err) = signal.wait_sync(Duration::from_secs(5)) {
             info!("stopping server: {}", err);
             rest_server.stop();
             break;

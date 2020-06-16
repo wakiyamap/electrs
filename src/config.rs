@@ -11,6 +11,8 @@ use crate::daemon::CookieGetter;
 
 use crate::errors::*;
 
+const ELECTRS_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Debug, Clone)]
 pub struct Config {
     // See below for the documentation of each field:
@@ -26,10 +28,16 @@ pub struct Config {
     pub jsonrpc_import: bool,
     pub light_mode: bool,
     pub address_search: bool,
-    pub prevout_enabled: bool,
     pub cors: Option<String>,
     pub precache_scripts: Option<String>,
+    pub utxos_limit: usize,
     pub electrum_txs_limit: usize,
+    pub electrum_banner: String,
+
+    #[cfg(feature = "electrum-discovery")]
+    pub electrum_public_hosts: Option<crate::electrum::ServerHosts>,
+    #[cfg(feature = "electrum-discovery")]
+    pub tor_proxy: Option<std::net::SocketAddr>,
 }
 
 fn str_to_socketaddr(address: &str, what: &str) -> SocketAddr {
@@ -125,11 +133,6 @@ impl Config {
                     .help("Enable prefix address search")
             )
             .arg(
-                Arg::with_name("disable_prevout")
-                    .long("disable-prevout")
-                    .help("Don't attach previous output details to inputs")
-            )
-            .arg(
                 Arg::with_name("cors")
                     .long("cors")
                     .help("Origins allowed to make cross-site requests")
@@ -142,11 +145,35 @@ impl Config {
                     .takes_value(true)
             )
             .arg(
+                Arg::with_name("utxos_limit")
+                    .long("utxos-limit")
+                    .help("Maximum number of utxos to process per address. Lookups for addresses with more utxos will fail. Applies to the Electrum and HTTP APIs.")
+                    .default_value("500")
+            )
+            .arg(
                 Arg::with_name("electrum_txs_limit")
                     .long("electrum-txs-limit")
                     .help("Maximum number of transactions returned by Electrum history queries. Lookups with more results will fail.")
-                    .default_value("100")
+                    .default_value("500")
+            ).arg(
+                Arg::with_name("electrum_banner")
+                    .long("electrum-banner")
+                    .help("Welcome banner for the Electrum server, shown in the console to clients.")
+                    .takes_value(true)
             );
+
+        #[cfg(feature = "electrum-discovery")]
+        let args = args.arg(
+                Arg::with_name("electrum_public_hosts")
+                    .long("electrum-public-hosts")
+                    .help("A dictionary of hosts where the Electrum server can be reached at. Required to enable server discovery. See https://electrumx.readthedocs.io/en/latest/protocol-methods.html#server-features")
+                    .takes_value(true)
+            ).arg(
+            Arg::with_name("tor_proxy")
+                .long("tor-proxy")
+                .help("ip:addr of socks proxy for accessing onion hosts")
+                .takes_value(true),
+        );
 
         let m = args.get_matches();
 
@@ -212,6 +239,16 @@ impl Config {
         }
         let cookie = m.value_of("cookie").map(|s| s.to_owned());
 
+        let electrum_banner = m.value_of("electrum_banner").map_or_else(
+            || format!("Welcome to electrs-esplora {}", ELECTRS_VERSION),
+            |s| s.into(),
+        );
+
+        #[cfg(feature = "electrum-discovery")]
+        let electrum_public_hosts = m
+            .value_of("electrum_public_hosts")
+            .map(|s| serde_json::from_str(s).expect("invalid --electrum-public-hosts"));
+
         let mut log = stderrlog::new();
         log.verbosity(m.occurrences_of("verbosity") as usize);
         log.timestamp(if m.is_present("timestamp") {
@@ -227,16 +264,22 @@ impl Config {
             daemon_dir,
             daemon_rpc_addr,
             cookie,
+            utxos_limit: value_t_or_exit!(m, "utxos_limit", usize),
             electrum_rpc_addr,
+            electrum_txs_limit: value_t_or_exit!(m, "electrum_txs_limit", usize),
+            electrum_banner,
             http_addr,
             monitoring_addr,
             jsonrpc_import: m.is_present("jsonrpc_import"),
             light_mode: m.is_present("light_mode"),
             address_search: m.is_present("address_search"),
-            prevout_enabled: !m.is_present("disable_prevout"),
             cors: m.value_of("cors").map(|s| s.to_string()),
             precache_scripts: m.value_of("precache_scripts").map(|s| s.to_string()),
-            electrum_txs_limit: value_t_or_exit!(m, "electrum_txs_limit", usize),
+
+            #[cfg(feature = "electrum-discovery")]
+            electrum_public_hosts,
+            #[cfg(feature = "electrum-discovery")]
+            tor_proxy: m.value_of("tor_proxy").map(|s| s.parse().unwrap()),
         };
         eprintln!("{:?}", config);
         config

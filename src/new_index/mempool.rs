@@ -105,13 +105,13 @@ impl Mempool {
 
     // XXX return as Vec<(Transaction,Option<BlockId>)>?
     pub fn history(&self, scripthash: &[u8], limit: usize) -> Vec<Transaction> {
+        let _timer = self.latency.with_label_values(&["history"]).start_timer();
         self.history
             .get(scripthash)
             .map_or_else(|| vec![], |entries| self._history(entries, limit))
     }
 
     fn _history(&self, entries: &[TxHistoryInfo], limit: usize) -> Vec<Transaction> {
-        let _timer = self.latency.with_label_values(&["history"]).start_timer();
         entries
             .iter()
             .map(|e| e.get_txid())
@@ -371,6 +371,11 @@ impl Mempool {
     }
 
     fn get_prevouts(&self, txids: &[Txid]) -> BTreeSet<OutPoint> {
+        let _timer = self
+            .latency
+            .with_label_values(&["get_prevouts"])
+            .start_timer();
+
         txids
             .iter()
             .map(|txid| self.txstore.get(txid).expect("missing mempool tx"))

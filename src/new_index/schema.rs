@@ -401,14 +401,6 @@ impl ChainQuery {
         })
     }
 
-    pub fn iter_scan(&self, prefix: &[u8], start_at: &[u8]) -> ScanIterator {
-        self.store.history_db.iter_scan_from(prefix, start_at)
-    }
-
-    pub fn iter_scan_reverse(&self, prefix: &[u8], prefix_max: &[u8]) -> ReverseScanIterator {
-        self.store.history_db.iter_scan_reverse(prefix, prefix_max)
-    }
-
     pub fn history_iter_scan(&self, code: u8, hash: &[u8], start_height: usize) -> ScanIterator {
         self.store.history_db.iter_scan_from(
             &TxHistoryRow::filter(code, &hash[..]),
@@ -482,7 +474,7 @@ impl ChainQuery {
     }
 
     // TODO: avoid duplication with stats/stats_delta?
-    pub fn utxo(&self, scripthash: &[u8]) -> Vec<Utxo> {
+    pub fn utxo(&self, scripthash: &[u8], limit: usize) -> Result<Vec<Utxo>> {
         let _timer = self.start_timer("utxo");
 
         // get the last known utxo set and the blockhash it was updated for.
@@ -501,9 +493,9 @@ impl ChainQuery {
 
         // update utxo set with new transactions since
         let (newutxos, lastblock, processed_items) = cache.map_or_else(
-            || self.utxo_delta(scripthash, HashMap::new(), 0),
-            |(oldutxos, blockheight)| self.utxo_delta(scripthash, oldutxos, blockheight + 1),
-        );
+            || self.utxo_delta(scripthash, HashMap::new(), 0, limit),
+            |(oldutxos, blockheight)| self.utxo_delta(scripthash, oldutxos, blockheight + 1, limit),
+        )?;
 
         // save updated utxo set to cache
         if let Some(lastblock) = lastblock {
@@ -516,7 +508,7 @@ impl ChainQuery {
         }
 
         // format as Utxo objects
-        newutxos
+        Ok(newutxos
             .into_iter()
             .map(|(outpoint, (blockid, value))| Utxo {
                 txid: outpoint.txid,
@@ -524,15 +516,16 @@ impl ChainQuery {
                 value,
                 confirmed: Some(blockid),
             })
-            .collect()
+            .collect())
     }
 
-    pub fn utxo_delta(
+    fn utxo_delta(
         &self,
         scripthash: &[u8],
         init_utxos: UtxoMap,
         start_height: usize,
-    ) -> (UtxoMap, Option<BlockHash>, usize) {
+        limit: usize,
+    ) -> Result<(UtxoMap, Option<BlockHash>, usize)> {
         let _timer = self.start_timer("utxo_delta");
         let history_iter = self
             .history_iter_scan(b'H', scripthash, start_height)
@@ -556,9 +549,14 @@ impl ChainQuery {
                 }
                 TxHistoryInfo::Spending(_) => utxos.remove(&history.get_funded_outpoint()),
             };
+
+            // abort if the utxo set size excedees the limit at any point in time
+            if utxos.len() > limit {
+                bail!(ErrorKind::TooPopular)
+            }
         }
 
-        (utxos, lastblock, processed_items)
+        Ok((utxos, lastblock, processed_items))
     }
 
     pub fn stats(&self, scripthash: &[u8]) -> ScriptStats {
@@ -642,6 +640,7 @@ impl ChainQuery {
     }
 
     pub fn address_search(&self, prefix: &str, limit: usize) -> Vec<String> {
+        let _timer_scan = self.start_timer("address_search");
         self.store
             .history_db
             .iter_scan(&addr_search_filter(prefix))
@@ -829,6 +828,7 @@ impl ChainQuery {
     }
 
     pub fn get_merkleblock_proof(&self, txid: &Txid) -> Option<MerkleBlock> {
+        let _timer = self.start_timer("get_merkleblock_proof");
         let blockid = self.tx_confirming_block(txid)?;
         let headerentry = self.header_by_hash(&blockid.hash)?;
         let block_txids = self.get_block_txids(&blockid.hash)?;
