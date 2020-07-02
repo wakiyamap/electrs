@@ -63,3 +63,7 @@ tempfile = "3.1"
 lto = true
 panic = 'abort'
 codegen-units = 1
+
+[patch.crates-io.electrum-client]
+git = "https://github.com/Blockstream/rust-electrum-client"
+rev = "bd783aa70604fa1a0d8b29a3459326c640001354" # add-peer

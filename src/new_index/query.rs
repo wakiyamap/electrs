@@ -147,6 +147,14 @@ impl Query {
         TransactionStatus::from(self.chain.tx_confirming_block(txid))
     }
 
+    pub fn get_mempool_tx_fee(&self, txid: &Txid) -> Option<u64> {
+        self.mempool().get_tx_fee(txid)
+    }
+
+    pub fn has_unconfirmed_parents(&self, txid: &Txid) -> bool {
+        self.mempool().has_unconfirmed_parents(txid)
+    }
+
     pub fn estimate_fee(&self, conf_target: u16) -> Option<f64> {
         if let (ref cache, Some(cache_time)) = *self.cached_estimates.read().unwrap() {
             if cache_time.elapsed() < Duration::from_secs(FEE_ESTIMATES_TTL) {

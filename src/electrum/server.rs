@@ -8,7 +8,6 @@ use std::thread;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use error_chain::ChainedError;
-use monacoin::hashes::hex::{FromHex, ToHex};
 use monacoin::hashes::sha256d::Hash as Sha256dHash;
 use monacoin::Txid;
 use serde_json::{from_str, Value};
@@ -16,12 +15,14 @@ use serde_json::{from_str, Value};
 use monacoin::consensus::encode::serialize;
 
 use crate::config::Config;
-use crate::electrum::ProtocolVersion;
+use crate::electrum::{get_electrum_height, ProtocolVersion};
 use crate::errors::*;
 use crate::metrics::{Gauge, HistogramOpts, HistogramVec, MetricOpts, Metrics};
 use crate::new_index::Query;
 use crate::util::electrum_merkle::{get_header_merkle_proof, get_id_from_pos, get_tx_merkle_proof};
-use crate::util::{full_hash, spawn_thread, BlockId, Channel, FullHash, HeaderEntry, SyncChannel};
+use crate::util::{
+    full_hash, spawn_thread, BlockId, BoolThen, Channel, FullHash, HeaderEntry, SyncChannel,
+};
 
 const ELECTRS_VERSION: &str = env!("CARGO_PKG_VERSION");
 const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::new(1, 4);
@@ -33,7 +34,7 @@ use crate::electrum::{DiscoveryManager, ServerFeatures};
 fn hash_from_value(val: Option<&Value>) -> Result<Sha256dHash> {
     let script_hash = val.chain_err(|| "missing hash")?;
     let script_hash = script_hash.as_str().chain_err(|| "non-string hash")?;
-    let script_hash = Sha256dHash::from_hex(script_hash).chain_err(|| "non-hex hash")?;
+    let script_hash = script_hash.parse().chain_err(|| "non-hex hash")?;
     Ok(script_hash)
 }
 
@@ -64,15 +65,19 @@ fn bool_from_value_or(val: Option<&Value>, name: &str, default: bool) -> Result<
 }
 
 // TODO: implement caching and delta updates
-fn get_status_hash(txs: Vec<(Txid, Option<BlockId>)>) -> Option<FullHash> {
+fn get_status_hash(txs: Vec<(Txid, Option<BlockId>)>, query: &Query) -> Option<FullHash> {
     if txs.is_empty() {
         None
     } else {
         let mut hash = FullHash::default();
         let mut sha2 = Sha256::new();
         for (txid, blockid) in txs {
-            // TODO: use height of 0 to indicate an unconfirmed tx with confirmed inputs, or -1 for unconfirmed tx with unconfirmed inputs
-            let part = format!("{}:{}:", txid.to_hex(), blockid.map_or(0, |b| b.height));
+            let is_mempool = blockid.is_none();
+            let has_unconfirmed_parents = is_mempool
+                .and_then(|| Some(query.has_unconfirmed_parents(&txid)))
+                .unwrap_or(false);
+            let height = get_electrum_height(blockid, has_unconfirmed_parents);
+            let part = format!("{}:{}:", txid, height);
             sha2.input(part.as_bytes());
         }
         sha2.result(&mut hash);
@@ -137,16 +142,11 @@ impl Connection {
 
     #[cfg(feature = "electrum-discovery")]
     fn server_features(&self) -> Result<Value> {
-        let hosts = self.query.config().electrum_public_hosts.clone();
-        Ok(json!(ServerFeatures {
-            hosts: hosts.unwrap_or_default(),
-            server_version: format!("electrs-esplora {}", ELECTRS_VERSION),
-            genesis_hash: self.query.network().genesis_hash(),
-            protocol_min: PROTOCOL_VERSION,
-            protocol_max: PROTOCOL_VERSION,
-            hash_function: "sha256".into(),
-            pruning: None,
-        }))
+        let discovery = self
+            .discovery
+            .as_ref()
+            .chain_err(|| "discovery is disabled")?;
+        Ok(json!(discovery.our_features()))
     }
 
     fn server_donation_address(&self) -> Result<Value> {
@@ -203,12 +203,10 @@ impl Connection {
         }
         let (branch, root) = get_header_merkle_proof(self.query.chain(), height, cp_height)?;
 
-        let branch_vec: Vec<String> = branch.into_iter().map(|b| b.to_hex()).collect();
-
         Ok(json!({
             "header": raw_header_hex,
-            "root": root.to_hex(),
-            "branch": branch_vec
+            "root": root,
+            "branch": branch
         }))
     }
 
@@ -239,14 +237,12 @@ impl Connection {
         let (branch, root) =
             get_header_merkle_proof(self.query.chain(), start_height + (count - 1), cp_height)?;
 
-        let branch_vec: Vec<String> = branch.into_iter().map(|b| b.to_hex()).collect();
-
         Ok(json!({
             "count": headers.len(),
             "hex": headers.join(""),
             "max": 2016,
-            "root": root.to_hex(),
-            "branch" : branch_vec
+            "root": root,
+            "branch" : branch,
         }))
     }
 
@@ -270,10 +266,12 @@ impl Connection {
         let script_hash = hash_from_value(params.get(0)).chain_err(|| "bad script_hash")?;
 
         let history_txids = get_history(&self.query, &script_hash[..], self.txs_limit)?;
-        let status_hash = get_status_hash(history_txids)
+        let status_hash = get_status_hash(history_txids, &self.query)
             .map_or(Value::Null, |h| json!(hex::encode(full_hash(&h[..]))));
 
-        self.status_hashes.insert(script_hash, status_hash.clone());
+        if self.status_hashes.insert(script_hash, status_hash.clone()).is_none() {
+            self.stats.subscriptions.inc();
+        }
         Ok(status_hash)
     }
 
@@ -290,12 +288,19 @@ impl Connection {
     fn blockchain_scripthash_get_history(&self, params: &[Value]) -> Result<Value> {
         let script_hash = hash_from_value(params.get(0)).chain_err(|| "bad script_hash")?;
         let history_txids = get_history(&self.query, &script_hash[..], self.txs_limit)?;
-        Ok(json!(Value::Array(
-            history_txids
-                .into_iter()
-                .map(|(txid, blockid)| json!({"height": blockid.map_or(0, |b| b.height), "tx_hash": txid.to_hex()}))
-                .collect()
-        )))
+
+        Ok(json!(history_txids
+            .into_iter()
+            .map(|(txid, blockid)| {
+                let is_mempool = blockid.is_none();
+                let fee = is_mempool.and_then(|| self.query.get_mempool_tx_fee(&txid));
+                let has_unconfirmed_parents = is_mempool
+                    .and_then(|| Some(self.query.has_unconfirmed_parents(&txid)))
+                    .unwrap_or(false);
+                let height = get_electrum_height(blockid, has_unconfirmed_parents);
+                GetHistoryResult { txid, height, fee }
+            })
+            .collect::<Vec<_>>()))
     }
 
     fn blockchain_scripthash_listunspent(&self, params: &[Value]) -> Result<Value> {
@@ -307,7 +312,7 @@ impl Connection {
                 .map(|utxo| json!({
                     "height": utxo.confirmed.map_or(0, |b| b.height),
                     "tx_pos": utxo.vout,
-                    "tx_hash": utxo.txid.to_hex(),
+                    "tx_hash": utxo.txid,
                     "value": utxo.value,
                 }))
                 .collect()
@@ -321,7 +326,7 @@ impl Connection {
         if let Err(e) = self.chan.sender().try_send(Message::PeriodicUpdate) {
             warn!("failed to issue PeriodicUpdate after broadcast: {}", e);
         }
-        Ok(json!(txid.to_hex()))
+        Ok(json!(txid))
     }
 
     fn blockchain_transaction_get(&self, params: &[Value]) -> Result<Value> {
@@ -356,7 +361,6 @@ impl Connection {
         }
         let (merkle, pos) = get_tx_merkle_proof(self.query.chain(), &txid, &blockid.hash)
             .chain_err(|| "cannot create merkle proof")?;
-        let merkle: Vec<String> = merkle.into_iter().map(|txid| txid.to_hex()).collect();
         Ok(json!({
                 "block_height": blockid.height,
                 "merkle": merkle,
@@ -371,14 +375,12 @@ impl Connection {
         let (txid, merkle) = get_id_from_pos(self.query.chain(), height, tx_pos, want_merkle)?;
 
         if !want_merkle {
-            return Ok(json!(txid.to_hex()));
+            return Ok(json!(txid));
         }
 
-        let merkle_vec: Vec<String> = merkle.into_iter().map(|entry| entry.to_hex()).collect();
-
         Ok(json!({
-            "tx_hash" : txid.to_hex(),
-            "merkle" : merkle_vec}))
+            "tx_hash": txid,
+            "merkle" : merkle}))
     }
 
     fn handle_command(&mut self, method: &str, params: &[Value], id: &Value) -> Result<Value> {
@@ -455,7 +457,7 @@ impl Connection {
         }
         for (script_hash, status_hash) in self.status_hashes.iter_mut() {
             let history_txids = get_history(&self.query, &script_hash[..], self.txs_limit)?;
-            let new_status_hash = get_status_hash(history_txids)
+            let new_status_hash = get_status_hash(history_txids, &self.query)
                 .map_or(Value::Null, |h| json!(hex::encode(full_hash(&h[..]))));
             if new_status_hash == *status_hash {
                 continue;
@@ -463,13 +465,10 @@ impl Connection {
             result.push(json!({
                 "jsonrpc": "2.0",
                 "method": "blockchain.scripthash.subscribe",
-                "params": [script_hash.to_hex(), new_status_hash]}));
+                "params": [script_hash, new_status_hash]}));
             *status_hash = new_status_hash;
         }
         timer.observe_duration();
-        self.stats
-            .subscriptions
-            .set(self.status_hashes.len() as i64);
         Ok(result)
     }
 
@@ -545,6 +544,7 @@ impl Connection {
     }
 
     pub fn run(mut self) {
+        self.stats.clients.inc();
         let reader = BufReader::new(self.stream.try_clone().expect("failed to clone TcpStream"));
         let tx = self.chan.sender();
         let child = spawn_thread("reader", || Connection::handle_requests(reader, tx));
@@ -555,6 +555,11 @@ impl Connection {
                 e.display_chain().to_string()
             );
         }
+        self.stats.clients.dec();
+        self.stats
+            .subscriptions
+            .sub(self.status_hashes.len() as i64);
+
         debug!("[{}] shutting down connection", self.addr);
         let _ = self.stream.shutdown(Shutdown::Both);
         if let Err(err) = child.join().expect("receiver panicked") {
@@ -572,6 +577,15 @@ fn get_history(
     let history_txids = query.history_txids(scripthash, txs_limit + 1);
     ensure!(history_txids.len() <= txs_limit, ErrorKind::TooPopular);
     Ok(history_txids)
+}
+
+#[derive(Serialize, Debug)]
+struct GetHistoryResult {
+    #[serde(rename = "tx_hash")]
+    txid: Txid,
+    height: isize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fee: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -593,6 +607,7 @@ pub struct RPC {
 
 struct Stats {
     latency: HistogramVec,
+    clients: Gauge,
     subscriptions: Gauge,
 }
 
@@ -643,19 +658,34 @@ impl RPC {
                 HistogramOpts::new("electrum_rpc", "Electrum RPC latency (seconds)"),
                 &["method"],
             ),
+            clients: metrics.gauge(MetricOpts::new("electrum_clients", "# of Electrum clients")),
             subscriptions: metrics.gauge(MetricOpts::new(
                 "electrum_subscriptions",
                 "# of Electrum subscriptions",
             )),
         });
+        stats.clients.set(0);
+        stats.subscriptions.set(0);
+
         let notification = Channel::unbounded();
 
         // Discovery is enabled when electrum-public-hosts is set
         #[cfg(feature = "electrum-discovery")]
-        let discovery = config.electrum_public_hosts.as_ref().map(|_| {
+        let discovery = config.electrum_public_hosts.clone().map(|hosts| {
+            let features = ServerFeatures {
+                hosts,
+                server_version: format!("electrs-esplora {}", ELECTRS_VERSION),
+                genesis_hash: config.network_type.genesis_hash(),
+                protocol_min: PROTOCOL_VERSION,
+                protocol_max: PROTOCOL_VERSION,
+                hash_function: "sha256".into(),
+                pruning: None,
+            };
             let discovery = Arc::new(DiscoveryManager::new(
                 config.network_type,
+                features,
                 PROTOCOL_VERSION,
+                config.electrum_announce,
                 config.tor_proxy,
             ));
             DiscoveryManager::spawn_jobs_thread(Arc::clone(&discovery));

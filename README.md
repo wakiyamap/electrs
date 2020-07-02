@@ -21,8 +21,8 @@ $ cargo run --release --bin electrs -- -vvvv --daemon-dir ~/.monacoin
 See [electrs's original documentation](https://github.com/romanz/electrs/blob/master/doc/usage.md) for more detailed instructions.
 Note that our indexes are incompatible with electrs's and has to be created separately.
 
-The indexes require 440GB of storage after running compaction, but you'll need to have about 1TB
-of free space available for the initial (non-compacted) indexing process.
+The indexes require 610GB of storage after running compaction (as of June 2020), but you'll need to have
+free space of about double that available during the index compaction process.
 Creating the indexes should take a few hours on a beefy machine with SSD.
 
 To deploy with Docker, follow the [instructions here](https://github.com/Blockstream/esplora#how-to-build-the-docker-image).
@@ -30,8 +30,7 @@ To deploy with Docker, follow the [instructions here](https://github.com/Blockst
 ### Light mode
 
 For personal or low-volume use, you may set `--lightmode` to reduce disk storage requirements
-(at the time of writing, around block height 620k, by about 270GB)
-at the cost of slower and more expensive lookups.
+by roughly 50% at the cost of slower and more expensive lookups.
 
 With this option set, raw transactions and metadata associated with blocks will not be kept in rocksdb
 (the `T`, `X` and `M` indexes),
@@ -61,6 +60,16 @@ In addition to electrs's original configuration options, a few new options are a
 - `--lightmode` - enable light mode (see above)
 - `--cors <origins>` - origins allowed to make cross-site request (optional, defaults to none).
 - `--address-search` - enables the by-prefix address search index.
+- `--utxos-limit <num>` - maximum number of utxos to return per address.
+- `--electrum-txs-limit <num>` - maximum number of txs to return per address in the electrum server (does not apply for the http api).
+- `--electrum-banner <text>` - welcome banner text for electrum server.
+
+Additional options with the `liquid` feature:
+- `--parent-network <network>` - the parent network this chain is pegged to.
+
+Additional options with the `electrum-discovery` feature:
+- `--electrum-hosts <json>` - a json map of the public hosts where the electrum server is reachable, in the [`server.features` format](https://electrumx.readthedocs.io/en/latest/protocol-methods.html#server.features).
+- `--electrum-announce` - announce the electrum server on the electrum p2p server discovery network.
 
 See `$ cargo run --release --bin electrs -- --help` for the full list of options.
 
