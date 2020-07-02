@@ -269,7 +269,11 @@ impl Connection {
         let status_hash = get_status_hash(history_txids, &self.query)
             .map_or(Value::Null, |h| json!(hex::encode(full_hash(&h[..]))));
 
-        if self.status_hashes.insert(script_hash, status_hash.clone()).is_none() {
+        if self
+            .status_hashes
+            .insert(script_hash, status_hash.clone())
+            .is_none()
+        {
             self.stats.subscriptions.inc();
         }
         Ok(status_hash)
