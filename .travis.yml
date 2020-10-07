@@ -12,7 +12,7 @@ script:
   - cargo fmt --all -- --check
   - cargo check --all
   - cargo build --all
-  - cargo clippy --all-targets --all-features -- -D warnings
+  - cargo clippy --all-targets --all-features
   - cargo test --all
   - cargo build --features "electrum-client" --all
   - cargo clean
