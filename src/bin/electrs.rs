@@ -44,6 +44,7 @@ fn run_server(config: Arc<Config>) -> Result<()> {
 
     let daemon = Arc::new(Daemon::new(
         &config.daemon_dir,
+        &config.blocks_dir,
         config.daemon_rpc_addr,
         config.cookie_getter(),
         config.network_type,
@@ -87,13 +88,14 @@ fn run_server(config: Arc<Config>) -> Result<()> {
     ));
 
     // TODO: configuration for which servers to start
-    let rest_server = rest::run_server(Arc::clone(&config), Arc::clone(&query));
+    let rest_server = rest::start(Arc::clone(&config), Arc::clone(&query));
     let electrum_server = ElectrumRPC::start(Arc::clone(&config), Arc::clone(&query), &metrics);
 
     loop {
-        if let Err(err) = signal.wait_sync(Duration::from_secs(5)) {
+        if let Err(err) = signal.wait(Duration::from_secs(5), true) {
             info!("stopping server: {}", err);
             rest_server.stop();
+            // the electrum server is stopped when dropped
             break;
         }
 

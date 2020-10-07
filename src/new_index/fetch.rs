@@ -54,7 +54,7 @@ impl<T> Fetcher<T> {
 
     pub fn map<F>(self, mut func: F)
     where
-        F: FnMut(T) -> (),
+        F: FnMut(T),
     {
         for item in self.receiver {
             func(item);

@@ -292,11 +292,11 @@ impl DiscoveryManager {
     fn save_healthy_service(&self, job: &HealthCheck, features: ServerFeatures) {
         let addr = job.addr.clone();
         let mut healthy = self.healthy.write().unwrap();
-        assert!(healthy
+        healthy
             .entry(addr)
             .or_insert_with(|| Server::new(job.hostname.clone(), features))
             .services
-            .insert(job.service));
+            .insert(job.service);
     }
 
     /// Remove the service, and remove the server entirely if it has no other reamining healthy services
@@ -515,16 +515,30 @@ fn is_remote_addr(addr: &ServerAddr) -> bool {
 mod tests {
     use super::*;
     use crate::chain::Network;
+    use monacoin::blockdata::constants::genesis_block;
     use std::time;
 
     #[test]
     fn test() -> Result<()> {
         stderrlog::new().verbosity(4).init().unwrap();
 
+        let features = ServerFeatures {
+            hosts: HashMap::new(),
+            server_version: format!("electrs-esplora {}", "testdata"),
+            genesis_hash: genesis_block(monacoin::Network::MonacoinTestnet)
+                .header
+                .block_hash(),
+            protocol_min: ProtocolVersion::new(1, 4),
+            protocol_max: ProtocolVersion::new(1, 4),
+            hash_function: "sha256".into(),
+            pruning: None,
+        };
         let discovery = DiscoveryManager::new(
             Network::MonacoinTestnet,
-            "1.4".parse().unwrap(),
-            Some("127.0.0.1:9150".parse().unwrap()),
+            features,
+            ProtocolVersion::new(1, 4),
+            false,
+            None,
         );
 
         discovery.add_default_server(

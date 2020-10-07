@@ -3,24 +3,27 @@ use crate::config::Config;
 use crate::errors;
 use crate::new_index::{compute_script_hash, Query, SpendingInput, Utxo};
 use crate::util::{
-    electrum_merkle, extract_tx_prevouts, full_hash, get_innerscripts, get_script_asm, get_tx_fee,
-    has_prevout, is_coinbase, script_to_address, BlockHeaderMeta, BlockId, FullHash,
-    TransactionStatus,
+    create_socket, electrum_merkle, extract_tx_prevouts, full_hash, get_innerscripts,
+    get_script_asm, get_tx_fee, has_prevout, is_coinbase, script_to_address, BlockHeaderMeta,
+    BlockId, FullHash, TransactionStatus,
 };
 
-use futures::sync::oneshot;
 use hex::{self, FromHexError};
-use hyper::rt::{self, Future, Stream};
-use hyper::service::service_fn;
-use hyper::{Body, Method, Request, Response, Server, StatusCode};
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Method, Response, Server, StatusCode};
 use monacoin::consensus::encode;
 use monacoin::hashes::hex::{FromHex, ToHex};
 use monacoin::hashes::Error as HashError;
 use monacoin::{BlockHash, Script, Txid};
+use tokio::sync::oneshot;
+
+use hyperlocal::UnixServerExt;
+use std::fs;
 
 use serde::Serialize;
 use std::collections::HashMap;
 use std::num::ParseIntError;
+use std::os::unix::fs::FileTypeExt;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
@@ -40,7 +43,7 @@ const CONF_FINAL: usize = 10; // reorgs deeper than this are considered unlikely
 struct BlockValue {
     id: String,
     height: u32,
-    version: u32,
+    version: i32,
     timestamp: u32,
     tx_count: u32,
     size: u32,
@@ -80,7 +83,7 @@ impl BlockValue {
 #[derive(Serialize, Deserialize)]
 struct TransactionValue {
     txid: Txid,
-    version: u32,
+    version: i32,
     locktime: u32,
     vin: Vec<TxInValue>,
     vout: Vec<TxOutValue>,
@@ -254,7 +257,6 @@ impl From<Utxo> for UtxoValue {
             txid: utxo.txid,
             vout: utxo.vout,
             status: TransactionStatus::from(utxo.confirmed),
-
             value: utxo.value,
         }
     }
@@ -323,53 +325,94 @@ fn prepare_txs(
         .collect()
 }
 
-type BoxFut = Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send>;
-
-pub fn run_server(config: Arc<Config>, query: Arc<Query>) -> Handle {
+#[tokio::main]
+async fn run_server(config: Arc<Config>, query: Arc<Query>, rx: oneshot::Receiver<()>) {
     let addr = &config.http_addr;
-    info!("REST server running on {}", addr);
+    let socket_file = &config.http_socket_file;
 
-    let config = Arc::new(config.clone());
+    let config = Arc::clone(&config);
+    let query = Arc::clone(&query);
 
-    let new_service = move || {
+    let make_service_fn_inn = || {
         let query = Arc::clone(&query);
         let config = Arc::clone(&config);
 
-        service_fn(move |req: Request<Body>| -> BoxFut {
-            let method = req.method().clone();
-            let uri = req.uri().clone();
-            let query = Arc::clone(&query);
-            let config = Arc::clone(&config);
-            let future = req.into_body().concat2().and_then(move |body| {
-                let mut resp =
-                    handle_request(method, uri, body, &query, &config).unwrap_or_else(|err| {
-                        warn!("{:?}", err);
-                        Response::builder()
-                            .status(err.0)
-                            .header("Content-Type", "text/plain")
-                            .body(Body::from(err.1))
-                            .unwrap()
-                    });
-                if let Some(ref origins) = config.cors {
-                    resp.headers_mut()
-                        .insert("Access-Control-Allow-Origin", origins.parse().unwrap());
+        async move {
+            Ok::<_, hyper::Error>(service_fn(move |req| {
+                let query = Arc::clone(&query);
+                let config = Arc::clone(&config);
+
+                async move {
+                    let method = req.method().clone();
+                    let uri = req.uri().clone();
+                    let body = hyper::body::to_bytes(req.into_body()).await?;
+
+                    let mut resp = handle_request(method, uri, body, &query, &config)
+                        .unwrap_or_else(|err| {
+                            warn!("{:?}", err);
+                            Response::builder()
+                                .status(err.0)
+                                .header("Content-Type", "text/plain")
+                                .body(Body::from(err.1))
+                                .unwrap()
+                        });
+                    if let Some(ref origins) = config.cors {
+                        resp.headers_mut()
+                            .insert("Access-Control-Allow-Origin", origins.parse().unwrap());
+                    }
+                    Ok::<_, hyper::Error>(resp)
                 }
-                Ok(resp)
-            });
-            Box::new(future)
-        })
+            }))
+        }
     };
 
+    let server = match socket_file {
+        None => {
+            info!("REST server running on {}", addr);
+
+            let socket = create_socket(&addr);
+            socket.listen(511).expect("setting backlog failed");
+
+            Server::from_tcp(socket.into_tcp_listener())
+                .expect("Server::from_tcp failed")
+                .serve(make_service_fn(move |_| make_service_fn_inn()))
+                .with_graceful_shutdown(async {
+                    rx.await.ok();
+                })
+                .await
+        }
+        Some(path) => {
+            if let Ok(meta) = fs::metadata(&path) {
+                // Cleanup socket file left by previous execution
+                if meta.file_type().is_socket() {
+                    fs::remove_file(path).ok();
+                }
+            }
+
+            info!("REST server running on unix socket {}", path.display());
+
+            Server::bind_unix(path)
+                .expect("Server::bind_unix failed")
+                .serve(make_service_fn(move |_| make_service_fn_inn()))
+                .with_graceful_shutdown(async {
+                    rx.await.ok();
+                })
+                .await
+        }
+    };
+
+    if let Err(e) = server {
+        eprintln!("server error: {}", e);
+    }
+}
+
+pub fn start(config: Arc<Config>, query: Arc<Query>) -> Handle {
     let (tx, rx) = oneshot::channel::<()>();
-    let server = Server::bind(&addr)
-        .serve(new_service)
-        .with_graceful_shutdown(rx)
-        .map_err(|e| eprintln!("server error: {}", e));
 
     Handle {
         tx,
         thread: thread::spawn(move || {
-            rt::run(server);
+            run_server(config, query, rx);
         }),
     }
 }
@@ -389,7 +432,7 @@ impl Handle {
 fn handle_request(
     method: Method,
     uri: hyper::Uri,
-    body: hyper::Chunk,
+    body: hyper::body::Bytes,
     query: &Query,
     config: &Config,
 ) -> Result<Response<Body>, HttpError> {

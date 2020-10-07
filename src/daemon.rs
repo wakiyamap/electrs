@@ -127,7 +127,7 @@ fn tcp_connect(addr: SocketAddr, signal: &Waiter) -> Result<TcpStream> {
             Ok(conn) => return Ok(conn),
             Err(err) => {
                 warn!("failed to connect daemon at {}: {}", addr, err);
-                signal.wait(Duration::from_secs(3))?;
+                signal.wait(Duration::from_secs(3), false)?;
                 continue;
             }
         }
@@ -254,6 +254,7 @@ impl Counter {
 
 pub struct Daemon {
     daemon_dir: PathBuf,
+    blocks_dir: PathBuf,
     network: Network,
     conn: Mutex<Connection>,
     message_id: Counter, // for monotonic JSONRPC 'id'
@@ -267,6 +268,7 @@ pub struct Daemon {
 impl Daemon {
     pub fn new(
         daemon_dir: &PathBuf,
+        blocks_dir: &PathBuf,
         daemon_rpc_addr: SocketAddr,
         cookie_getter: Arc<dyn CookieGetter>,
         network: Network,
@@ -275,6 +277,7 @@ impl Daemon {
     ) -> Result<Daemon> {
         let daemon = Daemon {
             daemon_dir: daemon_dir.clone(),
+            blocks_dir: blocks_dir.clone(),
             network,
             conn: Mutex::new(Connection::new(
                 daemon_rpc_addr,
@@ -313,12 +316,12 @@ impl Daemon {
             }
 
             warn!(
-                "waiting for monacoind sync to finish: {}/{} blocks, vertification progress: {:.3}%",
+                "waiting for monacoind sync to finish: {}/{} blocks, verification progress: {:.3}%",
                 info.blocks,
                 info.headers,
                 info.verificationprogress * 100.0
             );
-            signal.wait(Duration::from_secs(5))?;
+            signal.wait(Duration::from_secs(5), false)?;
         }
         Ok(daemon)
     }
@@ -326,6 +329,7 @@ impl Daemon {
     pub fn reconnect(&self) -> Result<Daemon> {
         Ok(Daemon {
             daemon_dir: self.daemon_dir.clone(),
+            blocks_dir: self.blocks_dir.clone(),
             network: self.network,
             conn: Mutex::new(self.conn.lock().unwrap().reconnect()?),
             message_id: Counter::new(),
@@ -336,9 +340,7 @@ impl Daemon {
     }
 
     pub fn list_blk_files(&self) -> Result<Vec<PathBuf>> {
-        let mut path = self.daemon_dir.clone();
-        path.push("blocks");
-        path.push("blk*.dat");
+        let path = self.blocks_dir.join("blk*.dat");
         debug!("listing block files at {:?}", path);
         let mut paths: Vec<PathBuf> = glob::glob(path.to_str().unwrap())
             .chain_err(|| "failed to list blk*.dat files")?
@@ -391,7 +393,7 @@ impl Daemon {
             match self.handle_request_batch(method, params_list) {
                 Err(Error(ErrorKind::Connection(msg), _)) => {
                     warn!("reconnecting to monacoind: {}", msg);
-                    self.signal.wait(Duration::from_secs(3))?;
+                    self.signal.wait(Duration::from_secs(3), false)?;
                     let mut conn = self.conn.lock().unwrap();
                     *conn = conn.reconnect()?;
                     continue;

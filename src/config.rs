@@ -20,10 +20,12 @@ pub struct Config {
     pub network_type: Network,
     pub db_path: PathBuf,
     pub daemon_dir: PathBuf,
+    pub blocks_dir: PathBuf,
     pub daemon_rpc_addr: SocketAddr,
     pub cookie: Option<String>,
     pub electrum_rpc_addr: SocketAddr,
     pub http_addr: SocketAddr,
+    pub http_socket_file: Option<PathBuf>,
     pub monitoring_addr: SocketAddr,
     pub jsonrpc_import: bool,
     pub light_mode: bool,
@@ -81,6 +83,12 @@ impl Config {
                 Arg::with_name("daemon_dir")
                     .long("daemon-dir")
                     .help("Data directory of Bitcoind (default: ~/.bitcoin/)")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("blocks_dir")
+                    .long("blocks-dir")
+                    .help("Analogous to bitcoind's -blocksdir option, this specifies the directory containing the raw blocks files (blk*.dat) (default: ~/.bitcoin/blocks/)")
                     .takes_value(true),
             )
             .arg(
@@ -164,6 +172,14 @@ impl Config {
                     .takes_value(true)
             );
 
+        #[cfg(unix)]
+        let args = args.arg(
+                Arg::with_name("http_socket_file")
+                    .long("http-socket-file")
+                    .help("HTTP server 'unix socket file' to listen on (default disabled, enabling this disables the http server)")
+                    .takes_value(true),
+            );
+
         #[cfg(feature = "electrum-discovery")]
         let args = args.arg(
                 Arg::with_name("electrum_public_hosts")
@@ -224,6 +240,8 @@ impl Config {
                 .unwrap_or(&format!("127.0.0.1:{}", default_http_port)),
             "HTTP Server",
         );
+
+        let http_socket_file: Option<PathBuf> = m.value_of("http_socket_file").map(PathBuf::from);
         let monitoring_addr: SocketAddr = str_to_socketaddr(
             m.value_of("monitoring_addr")
                 .unwrap_or(&format!("127.0.0.1:{}", default_monitoring_port)),
@@ -243,6 +261,10 @@ impl Config {
             Network::MonacoinTestnet => daemon_dir.push("testnet4"),
             Network::MonacoinRegtest => daemon_dir.push("regtest"),
         }
+        let blocks_dir = m
+            .value_of("blocks_dir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| daemon_dir.join("blocks"));
         let cookie = m.value_of("cookie").map(|s| s.to_owned());
 
         let electrum_banner = m.value_of("electrum_banner").map_or_else(
@@ -268,6 +290,7 @@ impl Config {
             network_type,
             db_path,
             daemon_dir,
+            blocks_dir,
             daemon_rpc_addr,
             cookie,
             utxos_limit: value_t_or_exit!(m, "utxos_limit", usize),
@@ -275,6 +298,7 @@ impl Config {
             electrum_txs_limit: value_t_or_exit!(m, "electrum_txs_limit", usize),
             electrum_banner,
             http_addr,
+            http_socket_file,
             monitoring_addr,
             jsonrpc_import: m.is_present("jsonrpc_import"),
             light_mode: m.is_present("light_mode"),

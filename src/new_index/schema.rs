@@ -1,3 +1,4 @@
+use bincode::Options;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use itertools::Itertools;
@@ -1321,22 +1322,25 @@ impl TxHistoryRow {
     }
 
     fn prefix_height(code: u8, hash: &[u8], height: u32) -> Bytes {
-        bincode::config()
-            .big_endian()
+        bincode::options()
+            .with_big_endian()
             .serialize(&(code, full_hash(&hash[..]), height))
             .unwrap()
     }
 
     pub fn into_row(self) -> DBRow {
         DBRow {
-            key: bincode::config().big_endian().serialize(&self.key).unwrap(),
+            key: bincode::options()
+                .with_big_endian()
+                .serialize(&self.key)
+                .unwrap(),
             value: vec![],
         }
     }
 
     pub fn from_row(row: DBRow) -> Self {
-        let key = bincode::config()
-            .big_endian()
+        let key = bincode::options()
+            .with_big_endian()
             .deserialize(&row.key)
             .expect("failed to deserialize TxHistoryKey");
         TxHistoryRow { key }
