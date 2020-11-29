@@ -43,7 +43,7 @@ pub fn make_fee_histogram(mut entries: Vec<&TxFeeInfo>) -> Vec<(f32, u32)> {
     let mut bin_size = 0;
     let mut last_fee_rate = 0.0;
     for e in entries.iter().rev() {
-        if bin_size > VSIZE_BIN_WIDTH && (last_fee_rate - e.fee_per_vbyte).abs() > 0.00000001{
+        if bin_size > VSIZE_BIN_WIDTH && (last_fee_rate - e.fee_per_vbyte).abs() > 0.00000001 {
             // vsize of transactions paying >= last_fee_rate
             histogram.push((last_fee_rate, bin_size));
             bin_size = 0;
