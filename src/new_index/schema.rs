@@ -149,6 +149,7 @@ pub struct Indexer {
 struct IndexerConfig {
     light_mode: bool,
     address_search: bool,
+    index_unspendables: bool,
     network: Network,
 }
 
@@ -157,6 +158,7 @@ impl From<&Config> for IndexerConfig {
         IndexerConfig {
             light_mode: config.light_mode,
             address_search: config.address_search,
+            index_unspendables: config.index_unspendables,
             network: config.network_type,
         }
     }
@@ -394,11 +396,23 @@ impl ChainQuery {
         }
     }
 
+    pub fn get_block_header(&self, hash: &BlockHash) -> Option<BlockHeader> {
+        let _timer = self.start_timer("get_block_header");
+        Some(self.header_by_hash(hash)?.header().clone())
+    }
+
+    pub fn get_mtp(&self, height: usize) -> u32 {
+        let _timer = self.start_timer("get_block_mtp");
+        self.store.indexed_headers.read().unwrap().get_mtp(height)
+    }
+
     pub fn get_block_with_meta(&self, hash: &BlockHash) -> Option<BlockHeaderMeta> {
         let _timer = self.start_timer("get_block_with_meta");
+        let header_entry = self.header_by_hash(hash)?;
         Some(BlockHeaderMeta {
-            header_entry: self.header_by_hash(hash)?,
             meta: self.get_block_meta(hash)?,
+            mtp: self.get_mtp(header_entry.height()),
+            header_entry,
         })
     }
 
@@ -907,7 +921,7 @@ fn add_transaction(
 
     let txid = full_hash(&tx.txid()[..]);
     for (txo_index, txo) in tx.output.iter().enumerate() {
-        if !txo.script_pubkey.is_provably_unspendable() {
+        if is_spendable(txo) {
             rows.push(TxOutRow::new(&txid, txo_index, txo).into_row());
         }
     }
@@ -994,7 +1008,7 @@ fn index_transaction(
     //      S{funding-txid:vout}{spending-txid:vin} → ""
     let txid = full_hash(&tx.txid()[..]);
     for (txo_index, txo) in tx.output.iter().enumerate() {
-        if is_spendable(txo) {
+        if is_spendable(txo) || iconfig.index_unspendables {
             let history = TxHistoryRow::new(
                 &txo.script_pubkey,
                 confirmed_height,

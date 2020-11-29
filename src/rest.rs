@@ -34,6 +34,11 @@ const MAX_MEMPOOL_TXS: usize = 50;
 const BLOCK_LIMIT: usize = 10;
 const ADDRESS_SEARCH_LIMIT: usize = 10;
 
+#[cfg(feature = "liquid")]
+const ASSETS_PER_PAGE: usize = 25;
+#[cfg(feature = "liquid")]
+const ASSETS_MAX_PER_PAGE: usize = 100;
+
 const TTL_LONG: u32 = 157_784_630; // ttl for static resources (5 years)
 const TTL_SHORT: u32 = 10; // ttl for volatie resources
 const TTL_MEMPOOL_RECENT: u32 = 5; // ttl for GET /mempool/recent
@@ -50,6 +55,7 @@ struct BlockValue {
     weight: u32,
     merkle_root: String,
     previousblockhash: Option<String>,
+    mediantime: u32,
     nonce: u32,
     bits: u32,
     difficulty: u64,
@@ -72,6 +78,7 @@ impl BlockValue {
             } else {
                 None
             },
+            mediantime: blockhm.mtp,
 
             bits: header.bits,
             nonce: header.nonce,
@@ -502,6 +509,16 @@ fn handle_request(
                 .ok_or_else(|| HttpError::not_found("Block not found".to_string()))?;
             json_response(txids, TTL_LONG)
         }
+        (&Method::GET, Some(&"block"), Some(hash), Some(&"header"), None, None) => {
+            let hash = BlockHash::from_hex(hash)?;
+            let header = query
+                .chain()
+                .get_block_header(&hash)
+                .ok_or_else(|| HttpError::not_found("Block not found".to_string()))?;
+
+            let header_hex = hex::encode(encode::serialize(&header));
+            http_message(StatusCode::OK, header_hex, TTL_LONG)
+        }
         (&Method::GET, Some(&"block"), Some(hash), Some(&"raw"), None, None) => {
             let hash = BlockHash::from_hex(hash)?;
             let raw = query
@@ -547,7 +564,7 @@ fn handle_request(
                 )));
             }
 
-            // header_by_hash() only returns the BlockId for non-orphaned blocks,
+            // blockid_by_hash() only returns the BlockId for non-orphaned blocks,
             // or None for orphaned
             let confirmed_blockid = query.chain().blockid_by_hash(&hash);
 
